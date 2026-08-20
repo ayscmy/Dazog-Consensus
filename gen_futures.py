@@ -116,9 +116,13 @@ for pre, name, exch, kind, main_code in all_main:
     futures.append(rec)
 
 print("有效期货品种数:", len(futures))
-with open("futures.json","w",encoding="utf-8") as f:
-    json.dump(futures, f, ensure_ascii=False, indent=2)
-print("已写入 futures.json")
-# 打印几条样例
-for r in futures[:3]:
-    print(" ", r["name"], r["main"]["code"], "->", r.get("dominant",{}).get("code"))
+# 保护：有效品种过少（<40，说明接口异常/限流）时不覆盖，避免清空清单
+if len(futures) < 40:
+    print(f"⚠️ 有效品种数异常（{len(futures)} < 40），可能被限流，保留现有 futures.json 不覆盖")
+else:
+    with open("futures.json","w",encoding="utf-8") as f:
+        json.dump(futures, f, ensure_ascii=False, indent=2)
+    print("已写入 futures.json")
+    # 打印几条样例
+    for r in futures[:3]:
+        print(" ", r["name"], r["main"]["code"], "->", r.get("dominant",{}).get("code"))
