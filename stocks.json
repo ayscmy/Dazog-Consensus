@@ -1,0 +1,1082 @@
+[
+  {
+    "code": "sh000001",
+    "name": "上证指数",
+    "type": "index",
+    "sector": "指数"
+  },
+  {
+    "code": "sz399001",
+    "name": "深证成指",
+    "type": "index",
+    "sector": "指数"
+  },
+  {
+    "code": "sz399006",
+    "name": "创业板指",
+    "type": "index",
+    "sector": "指数"
+  },
+  {
+    "code": "sh000300",
+    "name": "沪深300",
+    "type": "index",
+    "sector": "指数"
+  },
+  {
+    "code": "sh000016",
+    "name": "上证50",
+    "type": "index",
+    "sector": "指数"
+  },
+  {
+    "code": "sh000688",
+    "name": "科创50",
+    "type": "index",
+    "sector": "指数"
+  },
+  {
+    "code": "sz399905",
+    "name": "中证500",
+    "type": "index",
+    "sector": "指数"
+  },
+  {
+    "code": "bj899050",
+    "name": "北证50",
+    "type": "index",
+    "sector": "指数"
+  },
+  {
+    "code": "sh510300",
+    "name": "沪深300ETF",
+    "type": "etf",
+    "sector": "宽基"
+  },
+  {
+    "code": "sh510050",
+    "name": "上证50ETF",
+    "type": "etf",
+    "sector": "宽基"
+  },
+  {
+    "code": "sz159915",
+    "name": "创业板ETF",
+    "type": "etf",
+    "sector": "宽基"
+  },
+  {
+    "code": "sh588000",
+    "name": "科创50ETF",
+    "type": "etf",
+    "sector": "宽基"
+  },
+  {
+    "code": "sh510500",
+    "name": "中证500ETF",
+    "type": "etf",
+    "sector": "宽基"
+  },
+  {
+    "code": "sh512100",
+    "name": "中证1000ETF",
+    "type": "etf",
+    "sector": "宽基"
+  },
+  {
+    "code": "sh512000",
+    "name": "券商ETF",
+    "type": "etf",
+    "sector": "非银"
+  },
+  {
+    "code": "sh512880",
+    "name": "证券ETF",
+    "type": "etf",
+    "sector": "非银"
+  },
+  {
+    "code": "sh512480",
+    "name": "半导体ETF",
+    "type": "etf",
+    "sector": "半导体"
+  },
+  {
+    "code": "sz159995",
+    "name": "芯片ETF",
+    "type": "etf",
+    "sector": "半导体"
+  },
+  {
+    "code": "sh512010",
+    "name": "医药ETF",
+    "type": "etf",
+    "sector": "医药"
+  },
+  {
+    "code": "sh512170",
+    "name": "医疗ETF",
+    "type": "etf",
+    "sector": "医药"
+  },
+  {
+    "code": "sz159928",
+    "name": "消费ETF",
+    "type": "etf",
+    "sector": "消费"
+  },
+  {
+    "code": "sh512690",
+    "name": "白酒ETF",
+    "type": "etf",
+    "sector": "消费"
+  },
+  {
+    "code": "sh512660",
+    "name": "军工ETF",
+    "type": "etf",
+    "sector": "军工"
+  },
+  {
+    "code": "sh516160",
+    "name": "新能源ETF",
+    "type": "etf",
+    "sector": "新能源"
+  },
+  {
+    "code": "sh515790",
+    "name": "光伏ETF",
+    "type": "etf",
+    "sector": "新能源"
+  },
+  {
+    "code": "sh515220",
+    "name": "煤炭ETF",
+    "type": "etf",
+    "sector": "煤炭"
+  },
+  {
+    "code": "sh512800",
+    "name": "银行ETF",
+    "type": "etf",
+    "sector": "银行"
+  },
+  {
+    "code": "sh512200",
+    "name": "地产ETF",
+    "type": "etf",
+    "sector": "地产"
+  },
+  {
+    "code": "sh515050",
+    "name": "5GETF",
+    "type": "etf",
+    "sector": "通信"
+  },
+  {
+    "code": "sh513100",
+    "name": "纳指ETF",
+    "type": "etf",
+    "sector": "海外"
+  },
+  {
+    "code": "sh518880",
+    "name": "黄金ETF",
+    "type": "etf",
+    "sector": "有色"
+  },
+  {
+    "code": "sh511380",
+    "name": "可转债ETF",
+    "type": "etf",
+    "sector": "固收"
+  },
+  {
+    "code": "sz159920",
+    "name": "恒生ETF",
+    "type": "etf",
+    "sector": "港股"
+  },
+  {
+    "code": "sh513180",
+    "name": "恒生科技ETF",
+    "type": "etf",
+    "sector": "港股"
+  },
+  {
+    "code": "sh560010",
+    "name": "中证红利ETF",
+    "type": "etf",
+    "sector": "红利"
+  },
+  {
+    "code": "sh515030",
+    "name": "新能源车ETF",
+    "type": "etf",
+    "sector": "新能源"
+  },
+  {
+    "code": "sh600519",
+    "name": "贵州茅台",
+    "type": "stock",
+    "sector": "白酒"
+  },
+  {
+    "code": "sz000858",
+    "name": "五粮液",
+    "type": "stock",
+    "sector": "白酒"
+  },
+  {
+    "code": "sz000568",
+    "name": "泸州老窖",
+    "type": "stock",
+    "sector": "白酒"
+  },
+  {
+    "code": "sh600809",
+    "name": "山西汾酒",
+    "type": "stock",
+    "sector": "白酒"
+  },
+  {
+    "code": "sz000596",
+    "name": "古井贡酒",
+    "type": "stock",
+    "sector": "白酒"
+  },
+  {
+    "code": "sh601398",
+    "name": "工商银行",
+    "type": "stock",
+    "sector": "银行"
+  },
+  {
+    "code": "sh601939",
+    "name": "建设银行",
+    "type": "stock",
+    "sector": "银行"
+  },
+  {
+    "code": "sh600036",
+    "name": "招商银行",
+    "type": "stock",
+    "sector": "银行"
+  },
+  {
+    "code": "sh601288",
+    "name": "农业银行",
+    "type": "stock",
+    "sector": "银行"
+  },
+  {
+    "code": "sh601988",
+    "name": "中国银行",
+    "type": "stock",
+    "sector": "银行"
+  },
+  {
+    "code": "sz002142",
+    "name": "宁波银行",
+    "type": "stock",
+    "sector": "银行"
+  },
+  {
+    "code": "sh600000",
+    "name": "浦发银行",
+    "type": "stock",
+    "sector": "银行"
+  },
+  {
+    "code": "sh601166",
+    "name": "兴业银行",
+    "type": "stock",
+    "sector": "银行"
+  },
+  {
+    "code": "sh601318",
+    "name": "中国平安",
+    "type": "stock",
+    "sector": "保险"
+  },
+  {
+    "code": "sh601628",
+    "name": "中国人寿",
+    "type": "stock",
+    "sector": "保险"
+  },
+  {
+    "code": "sh601601",
+    "name": "中国太保",
+    "type": "stock",
+    "sector": "保险"
+  },
+  {
+    "code": "sh601319",
+    "name": "中国人保",
+    "type": "stock",
+    "sector": "保险"
+  },
+  {
+    "code": "sh600030",
+    "name": "中信证券",
+    "type": "stock",
+    "sector": "券商"
+  },
+  {
+    "code": "sz300059",
+    "name": "东方财富",
+    "type": "stock",
+    "sector": "券商"
+  },
+  {
+    "code": "sh601688",
+    "name": "华泰证券",
+    "type": "stock",
+    "sector": "券商"
+  },
+  {
+    "code": "sh600837",
+    "name": "海通证券",
+    "type": "stock",
+    "sector": "券商"
+  },
+  {
+    "code": "sh601211",
+    "name": "国泰君安",
+    "type": "stock",
+    "sector": "券商"
+  },
+  {
+    "code": "sh601857",
+    "name": "中国石油",
+    "type": "stock",
+    "sector": "石油"
+  },
+  {
+    "code": "sh600028",
+    "name": "中国石化",
+    "type": "stock",
+    "sector": "石油"
+  },
+  {
+    "code": "sh600938",
+    "name": "中国海油",
+    "type": "stock",
+    "sector": "石油"
+  },
+  {
+    "code": "sh600900",
+    "name": "长江电力",
+    "type": "stock",
+    "sector": "电力"
+  },
+  {
+    "code": "sh600025",
+    "name": "华能水电",
+    "type": "stock",
+    "sector": "电力"
+  },
+  {
+    "code": "sh600905",
+    "name": "三峡能源",
+    "type": "stock",
+    "sector": "电力"
+  },
+  {
+    "code": "sh600795",
+    "name": "国电电力",
+    "type": "stock",
+    "sector": "电力"
+  },
+  {
+    "code": "sh600886",
+    "name": "国投电力",
+    "type": "stock",
+    "sector": "电力"
+  },
+  {
+    "code": "sh601088",
+    "name": "中国神华",
+    "type": "stock",
+    "sector": "煤炭"
+  },
+  {
+    "code": "sh601225",
+    "name": "陕西煤业",
+    "type": "stock",
+    "sector": "煤炭"
+  },
+  {
+    "code": "sh600188",
+    "name": "兖矿能源",
+    "type": "stock",
+    "sector": "煤炭"
+  },
+  {
+    "code": "sh600985",
+    "name": "淮北矿业",
+    "type": "stock",
+    "sector": "煤炭"
+  },
+  {
+    "code": "sh601899",
+    "name": "紫金矿业",
+    "type": "stock",
+    "sector": "有色"
+  },
+  {
+    "code": "sh600362",
+    "name": "江西铜业",
+    "type": "stock",
+    "sector": "有色"
+  },
+  {
+    "code": "sh603993",
+    "name": "洛阳钼业",
+    "type": "stock",
+    "sector": "有色"
+  },
+  {
+    "code": "sh600489",
+    "name": "中金黄金",
+    "type": "stock",
+    "sector": "有色"
+  },
+  {
+    "code": "sh601600",
+    "name": "中国铝业",
+    "type": "stock",
+    "sector": "有色"
+  },
+  {
+    "code": "sz002460",
+    "name": "赣锋锂业",
+    "type": "stock",
+    "sector": "有色"
+  },
+  {
+    "code": "sh600547",
+    "name": "山东黄金",
+    "type": "stock",
+    "sector": "有色"
+  },
+  {
+    "code": "sh600309",
+    "name": "万华化学",
+    "type": "stock",
+    "sector": "化工"
+  },
+  {
+    "code": "sz002493",
+    "name": "荣盛石化",
+    "type": "stock",
+    "sector": "化工"
+  },
+  {
+    "code": "sh600346",
+    "name": "恒力石化",
+    "type": "stock",
+    "sector": "化工"
+  },
+  {
+    "code": "sh600426",
+    "name": "华鲁恒升",
+    "type": "stock",
+    "sector": "化工"
+  },
+  {
+    "code": "sz002648",
+    "name": "卫星化学",
+    "type": "stock",
+    "sector": "化工"
+  },
+  {
+    "code": "sz002594",
+    "name": "比亚迪",
+    "type": "stock",
+    "sector": "汽车"
+  },
+  {
+    "code": "sh600104",
+    "name": "上汽集团",
+    "type": "stock",
+    "sector": "汽车"
+  },
+  {
+    "code": "sh601633",
+    "name": "长城汽车",
+    "type": "stock",
+    "sector": "汽车"
+  },
+  {
+    "code": "sz000625",
+    "name": "长安汽车",
+    "type": "stock",
+    "sector": "汽车"
+  },
+  {
+    "code": "sh601127",
+    "name": "赛力斯",
+    "type": "stock",
+    "sector": "汽车"
+  },
+  {
+    "code": "sz002230",
+    "name": "科大讯飞",
+    "type": "stock",
+    "sector": "汽车"
+  },
+  {
+    "code": "sh600660",
+    "name": "福耀玻璃",
+    "type": "stock",
+    "sector": "汽车"
+  },
+  {
+    "code": "sz300750",
+    "name": "宁德时代",
+    "type": "stock",
+    "sector": "电池"
+  },
+  {
+    "code": "sz300014",
+    "name": "亿纬锂能",
+    "type": "stock",
+    "sector": "电池"
+  },
+  {
+    "code": "sz300274",
+    "name": "阳光电源",
+    "type": "stock",
+    "sector": "光伏"
+  },
+  {
+    "code": "sh601012",
+    "name": "隆基绿能",
+    "type": "stock",
+    "sector": "光伏"
+  },
+  {
+    "code": "sh600438",
+    "name": "通威股份",
+    "type": "stock",
+    "sector": "光伏"
+  },
+  {
+    "code": "sz002459",
+    "name": "晶澳科技",
+    "type": "stock",
+    "sector": "光伏"
+  },
+  {
+    "code": "sh688599",
+    "name": "天合光能",
+    "type": "stock",
+    "sector": "光伏"
+  },
+  {
+    "code": "sh688223",
+    "name": "晶科能源",
+    "type": "stock",
+    "sector": "光伏"
+  },
+  {
+    "code": "sz002129",
+    "name": "TCL中环",
+    "type": "stock",
+    "sector": "光伏"
+  },
+  {
+    "code": "sz300316",
+    "name": "晶盛机电",
+    "type": "stock",
+    "sector": "光伏"
+  },
+  {
+    "code": "sh688981",
+    "name": "中芯国际",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sz002371",
+    "name": "北方华创",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sh603501",
+    "name": "韦尔股份",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sh603986",
+    "name": "兆易创新",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sz002049",
+    "name": "紫光国微",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sz300782",
+    "name": "卓胜微",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sh688008",
+    "name": "澜起科技",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sh688256",
+    "name": "寒武纪",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sh688041",
+    "name": "海光信息",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sh688012",
+    "name": "中微公司",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sh688126",
+    "name": "沪硅产业",
+    "type": "stock",
+    "sector": "半导体"
+  },
+  {
+    "code": "sz002475",
+    "name": "立讯精密",
+    "type": "stock",
+    "sector": "电子"
+  },
+  {
+    "code": "sz002241",
+    "name": "歌尔股份",
+    "type": "stock",
+    "sector": "电子"
+  },
+  {
+    "code": "sh601138",
+    "name": "工业富联",
+    "type": "stock",
+    "sector": "电子"
+  },
+  {
+    "code": "sh688036",
+    "name": "传音控股",
+    "type": "stock",
+    "sector": "电子"
+  },
+  {
+    "code": "sz000725",
+    "name": "京东方A",
+    "type": "stock",
+    "sector": "电子"
+  },
+  {
+    "code": "sz000100",
+    "name": "TCL科技",
+    "type": "stock",
+    "sector": "电子"
+  },
+  {
+    "code": "sh600941",
+    "name": "中国移动",
+    "type": "stock",
+    "sector": "通信"
+  },
+  {
+    "code": "sh601728",
+    "name": "中国电信",
+    "type": "stock",
+    "sector": "通信"
+  },
+  {
+    "code": "sh600050",
+    "name": "中国联通",
+    "type": "stock",
+    "sector": "通信"
+  },
+  {
+    "code": "sz000063",
+    "name": "中兴通讯",
+    "type": "stock",
+    "sector": "通信"
+  },
+  {
+    "code": "sh600845",
+    "name": "宝信软件",
+    "type": "stock",
+    "sector": "通信"
+  },
+  {
+    "code": "sh600276",
+    "name": "恒瑞医药",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sh603259",
+    "name": "药明康德",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sz300760",
+    "name": "迈瑞医疗",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sz300122",
+    "name": "智飞生物",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sh600436",
+    "name": "片仔癀",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sz000538",
+    "name": "云南白药",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sz300015",
+    "name": "爱尔眼科",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sz000661",
+    "name": "长春高新",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sh600196",
+    "name": "复星医药",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sz300347",
+    "name": "泰格医药",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sh688180",
+    "name": "君实生物",
+    "type": "stock",
+    "sector": "医药"
+  },
+  {
+    "code": "sz000333",
+    "name": "美的集团",
+    "type": "stock",
+    "sector": "家电"
+  },
+  {
+    "code": "sz000651",
+    "name": "格力电器",
+    "type": "stock",
+    "sector": "家电"
+  },
+  {
+    "code": "sh600690",
+    "name": "海尔智家",
+    "type": "stock",
+    "sector": "家电"
+  },
+  {
+    "code": "sz000921",
+    "name": "海信家电",
+    "type": "stock",
+    "sector": "家电"
+  },
+  {
+    "code": "sh600887",
+    "name": "伊利股份",
+    "type": "stock",
+    "sector": "食品"
+  },
+  {
+    "code": "sh603288",
+    "name": "海天味业",
+    "type": "stock",
+    "sector": "食品"
+  },
+  {
+    "code": "sz000895",
+    "name": "双汇发展",
+    "type": "stock",
+    "sector": "食品"
+  },
+  {
+    "code": "sz002507",
+    "name": "涪陵榨菜",
+    "type": "stock",
+    "sector": "食品"
+  },
+  {
+    "code": "sh600132",
+    "name": "重庆啤酒",
+    "type": "stock",
+    "sector": "食品"
+  },
+  {
+    "code": "sh600031",
+    "name": "三一重工",
+    "type": "stock",
+    "sector": "机械"
+  },
+  {
+    "code": "sz000157",
+    "name": "中联重科",
+    "type": "stock",
+    "sector": "机械"
+  },
+  {
+    "code": "sz000425",
+    "name": "徐工机械",
+    "type": "stock",
+    "sector": "机械"
+  },
+  {
+    "code": "sh601100",
+    "name": "恒立液压",
+    "type": "stock",
+    "sector": "机械"
+  },
+  {
+    "code": "sz300124",
+    "name": "汇川技术",
+    "type": "stock",
+    "sector": "机械"
+  },
+  {
+    "code": "sh600760",
+    "name": "中航沈飞",
+    "type": "stock",
+    "sector": "军工"
+  },
+  {
+    "code": "sh600893",
+    "name": "航发动力",
+    "type": "stock",
+    "sector": "军工"
+  },
+  {
+    "code": "sz002179",
+    "name": "中航光电",
+    "type": "stock",
+    "sector": "军工"
+  },
+  {
+    "code": "sh600150",
+    "name": "中国船舶",
+    "type": "stock",
+    "sector": "军工"
+  },
+  {
+    "code": "sz000768",
+    "name": "中航西飞",
+    "type": "stock",
+    "sector": "军工"
+  },
+  {
+    "code": "sz002414",
+    "name": "高德红外",
+    "type": "stock",
+    "sector": "军工"
+  },
+  {
+    "code": "sh601766",
+    "name": "中国中车",
+    "type": "stock",
+    "sector": "交运"
+  },
+  {
+    "code": "sh601816",
+    "name": "京沪高铁",
+    "type": "stock",
+    "sector": "交运"
+  },
+  {
+    "code": "sz002352",
+    "name": "顺丰控股",
+    "type": "stock",
+    "sector": "交运"
+  },
+  {
+    "code": "sh601919",
+    "name": "中远海控",
+    "type": "stock",
+    "sector": "交运"
+  },
+  {
+    "code": "sh600009",
+    "name": "上海机场",
+    "type": "stock",
+    "sector": "交运"
+  },
+  {
+    "code": "sh600019",
+    "name": "宝钢股份",
+    "type": "stock",
+    "sector": "钢铁"
+  },
+  {
+    "code": "sh600585",
+    "name": "海螺水泥",
+    "type": "stock",
+    "sector": "建材"
+  },
+  {
+    "code": "sz000786",
+    "name": "北新建材",
+    "type": "stock",
+    "sector": "建材"
+  },
+  {
+    "code": "sh688111",
+    "name": "金山办公",
+    "type": "stock",
+    "sector": "软件"
+  },
+  {
+    "code": "sh600588",
+    "name": "用友网络",
+    "type": "stock",
+    "sector": "软件"
+  },
+  {
+    "code": "sh600570",
+    "name": "恒生电子",
+    "type": "stock",
+    "sector": "软件"
+  },
+  {
+    "code": "sz300454",
+    "name": "深信服",
+    "type": "stock",
+    "sector": "软件"
+  },
+  {
+    "code": "sz002714",
+    "name": "牧原股份",
+    "type": "stock",
+    "sector": "农业"
+  },
+  {
+    "code": "sz300498",
+    "name": "温氏股份",
+    "type": "stock",
+    "sector": "农业"
+  },
+  {
+    "code": "sh600598",
+    "name": "北大荒",
+    "type": "stock",
+    "sector": "农业"
+  },
+  {
+    "code": "sz002027",
+    "name": "分众传媒",
+    "type": "stock",
+    "sector": "传媒"
+  },
+  {
+    "code": "sz300413",
+    "name": "芒果超媒",
+    "type": "stock",
+    "sector": "传媒"
+  },
+  {
+    "code": "sh601888",
+    "name": "中国中免",
+    "type": "stock",
+    "sector": "旅游"
+  },
+  {
+    "code": "sz300144",
+    "name": "宋城演艺",
+    "type": "stock",
+    "sector": "旅游"
+  },
+  {
+    "code": "sh600258",
+    "name": "首旅酒店",
+    "type": "stock",
+    "sector": "旅游"
+  },
+  {
+    "code": "sz000002",
+    "name": "万科A",
+    "type": "stock",
+    "sector": "地产"
+  },
+  {
+    "code": "sh600048",
+    "name": "保利发展",
+    "type": "stock",
+    "sector": "地产"
+  },
+  {
+    "code": "sz001979",
+    "name": "招商蛇口",
+    "type": "stock",
+    "sector": "地产"
+  },
+  {
+    "code": "sh600383",
+    "name": "金地集团",
+    "type": "stock",
+    "sector": "地产"
+  },
+  {
+    "code": "sh601390",
+    "name": "中国中铁",
+    "type": "stock",
+    "sector": "建筑"
+  },
+  {
+    "code": "sh601668",
+    "name": "中国建筑",
+    "type": "stock",
+    "sector": "建筑"
+  },
+  {
+    "code": "sh601186",
+    "name": "中国铁建",
+    "type": "stock",
+    "sector": "建筑"
+  },
+  {
+    "code": "sh601800",
+    "name": "中国交建",
+    "type": "stock",
+    "sector": "建筑"
+  }
+]

@@ -1,0 +1,898 @@
+[
+  {
+    "underlying": "ag",
+    "name": "沪银",
+    "exch": "SHFE",
+    "kind": "贵金属",
+    "main": {
+      "code": "nf_AG0",
+      "name": "沪银主连"
+    },
+    "dominant": {
+      "code": "nf_AG2609",
+      "name": "沪银2609"
+    }
+  },
+  {
+    "underlying": "au",
+    "name": "沪金",
+    "exch": "SHFE",
+    "kind": "贵金属",
+    "main": {
+      "code": "nf_AU0",
+      "name": "沪金主连"
+    },
+    "dominant": {
+      "code": "nf_AU2609",
+      "name": "沪金2609"
+    }
+  },
+  {
+    "underlying": "cu",
+    "name": "沪铜",
+    "exch": "SHFE",
+    "kind": "有色金属",
+    "main": {
+      "code": "nf_CU0",
+      "name": "沪铜主连"
+    },
+    "dominant": {
+      "code": "nf_CU2609",
+      "name": "沪铜2609"
+    }
+  },
+  {
+    "underlying": "al",
+    "name": "沪铝",
+    "exch": "SHFE",
+    "kind": "有色金属",
+    "main": {
+      "code": "nf_AL0",
+      "name": "沪铝主连"
+    },
+    "dominant": {
+      "code": "nf_AL2609",
+      "name": "沪铝2609"
+    }
+  },
+  {
+    "underlying": "zn",
+    "name": "沪锌",
+    "exch": "SHFE",
+    "kind": "有色金属",
+    "main": {
+      "code": "nf_ZN0",
+      "name": "沪锌主连"
+    },
+    "dominant": {
+      "code": "nf_ZN2609",
+      "name": "沪锌2609"
+    }
+  },
+  {
+    "underlying": "pb",
+    "name": "沪铅",
+    "exch": "SHFE",
+    "kind": "有色金属",
+    "main": {
+      "code": "nf_PB0",
+      "name": "沪铅主连"
+    },
+    "dominant": {
+      "code": "nf_PB2609",
+      "name": "沪铅2609"
+    }
+  },
+  {
+    "underlying": "ni",
+    "name": "沪镍",
+    "exch": "SHFE",
+    "kind": "有色金属",
+    "main": {
+      "code": "nf_NI0",
+      "name": "沪镍主连"
+    },
+    "dominant": {
+      "code": "nf_NI2609",
+      "name": "沪镍2609"
+    }
+  },
+  {
+    "underlying": "sn",
+    "name": "沪锡",
+    "exch": "SHFE",
+    "kind": "有色金属",
+    "main": {
+      "code": "nf_SN0",
+      "name": "沪锡主连"
+    },
+    "dominant": {
+      "code": "nf_SN2609",
+      "name": "沪锡2609"
+    }
+  },
+  {
+    "underlying": "rb",
+    "name": "螺纹钢",
+    "exch": "SHFE",
+    "kind": "黑色系",
+    "main": {
+      "code": "nf_RB0",
+      "name": "螺纹钢主连"
+    },
+    "dominant": {
+      "code": "nf_RB2609",
+      "name": "螺纹钢2609"
+    }
+  },
+  {
+    "underlying": "hc",
+    "name": "热卷",
+    "exch": "SHFE",
+    "kind": "黑色系",
+    "main": {
+      "code": "nf_HC0",
+      "name": "热卷主连"
+    },
+    "dominant": {
+      "code": "nf_HC2609",
+      "name": "热卷2609"
+    }
+  },
+  {
+    "underlying": "ss",
+    "name": "不锈钢",
+    "exch": "SHFE",
+    "kind": "黑色系",
+    "main": {
+      "code": "nf_SS0",
+      "name": "不锈钢主连"
+    },
+    "dominant": {
+      "code": "nf_SS2609",
+      "name": "不锈钢2609"
+    }
+  },
+  {
+    "underlying": "fu",
+    "name": "燃油",
+    "exch": "SHFE",
+    "kind": "能源",
+    "main": {
+      "code": "nf_FU0",
+      "name": "燃油主连"
+    },
+    "dominant": {
+      "code": "nf_FU2609",
+      "name": "燃油2609"
+    }
+  },
+  {
+    "underlying": "bu",
+    "name": "沥青",
+    "exch": "SHFE",
+    "kind": "能源",
+    "main": {
+      "code": "nf_BU0",
+      "name": "沥青主连"
+    },
+    "dominant": {
+      "code": "nf_BU2609",
+      "name": "沥青2609"
+    }
+  },
+  {
+    "underlying": "lu",
+    "name": "低硫燃油",
+    "exch": "SHFE",
+    "kind": "能源",
+    "main": {
+      "code": "nf_LU0",
+      "name": "低硫燃油主连"
+    },
+    "dominant": {
+      "code": "nf_LU2609",
+      "name": "低硫燃油2609"
+    }
+  },
+  {
+    "underlying": "ru",
+    "name": "橡胶",
+    "exch": "SHFE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_RU0",
+      "name": "橡胶主连"
+    },
+    "dominant": {
+      "code": "nf_RU2609",
+      "name": "橡胶2609"
+    }
+  },
+  {
+    "underlying": "nr",
+    "name": "20号胶",
+    "exch": "SHFE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_NR0",
+      "name": "20号胶主连"
+    },
+    "dominant": {
+      "code": "nf_NR2609",
+      "name": "20号胶2609"
+    }
+  },
+  {
+    "underlying": "sp",
+    "name": "纸浆",
+    "exch": "SHFE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_SP0",
+      "name": "纸浆主连"
+    },
+    "dominant": {
+      "code": "nf_SP2609",
+      "name": "纸浆2609"
+    }
+  },
+  {
+    "underlying": "sh",
+    "name": "烧碱",
+    "exch": "SHFE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_SH0",
+      "name": "烧碱主连"
+    },
+    "dominant": {
+      "code": "nf_SH2609",
+      "name": "烧碱2609"
+    }
+  },
+  {
+    "underlying": "i",
+    "name": "铁矿石",
+    "exch": "DCE",
+    "kind": "黑色系",
+    "main": {
+      "code": "nf_I0",
+      "name": "铁矿石主连"
+    },
+    "dominant": {
+      "code": "nf_I2609",
+      "name": "铁矿石2609"
+    }
+  },
+  {
+    "underlying": "j",
+    "name": "焦炭",
+    "exch": "DCE",
+    "kind": "黑色系",
+    "main": {
+      "code": "nf_J0",
+      "name": "焦炭主连"
+    },
+    "dominant": {
+      "code": "nf_J2609",
+      "name": "焦炭2609"
+    }
+  },
+  {
+    "underlying": "jm",
+    "name": "焦煤",
+    "exch": "DCE",
+    "kind": "黑色系",
+    "main": {
+      "code": "nf_JM0",
+      "name": "焦煤主连"
+    },
+    "dominant": {
+      "code": "nf_JM2609",
+      "name": "焦煤2609"
+    }
+  },
+  {
+    "underlying": "pg",
+    "name": "液化石油气",
+    "exch": "DCE",
+    "kind": "能源",
+    "main": {
+      "code": "nf_PG0",
+      "name": "液化石油气主连"
+    },
+    "dominant": {
+      "code": "nf_PG2609",
+      "name": "液化石油气2609"
+    }
+  },
+  {
+    "underlying": "l",
+    "name": "塑料",
+    "exch": "DCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_L0",
+      "name": "塑料主连"
+    },
+    "dominant": {
+      "code": "nf_L2609",
+      "name": "塑料2609"
+    }
+  },
+  {
+    "underlying": "pp",
+    "name": "聚丙烯",
+    "exch": "DCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_PP0",
+      "name": "聚丙烯主连"
+    },
+    "dominant": {
+      "code": "nf_PP2609",
+      "name": "聚丙烯2609"
+    }
+  },
+  {
+    "underlying": "eg",
+    "name": "乙二醇",
+    "exch": "DCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_EG0",
+      "name": "乙二醇主连"
+    },
+    "dominant": {
+      "code": "nf_EG2609",
+      "name": "乙二醇2609"
+    }
+  },
+  {
+    "underlying": "eb",
+    "name": "苯乙烯",
+    "exch": "DCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_EB0",
+      "name": "苯乙烯主连"
+    },
+    "dominant": {
+      "code": "nf_EB2609",
+      "name": "苯乙烯2609"
+    }
+  },
+  {
+    "underlying": "m",
+    "name": "豆粕",
+    "exch": "DCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_M0",
+      "name": "豆粕主连"
+    },
+    "dominant": {
+      "code": "nf_M2609",
+      "name": "豆粕2609"
+    }
+  },
+  {
+    "underlying": "y",
+    "name": "豆油",
+    "exch": "DCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_Y0",
+      "name": "豆油主连"
+    },
+    "dominant": {
+      "code": "nf_Y2609",
+      "name": "豆油2609"
+    }
+  },
+  {
+    "underlying": "a",
+    "name": "豆一",
+    "exch": "DCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_A0",
+      "name": "豆一主连"
+    },
+    "dominant": {
+      "code": "nf_A2609",
+      "name": "豆一2609"
+    }
+  },
+  {
+    "underlying": "b",
+    "name": "豆二",
+    "exch": "DCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_B0",
+      "name": "豆二主连"
+    },
+    "dominant": {
+      "code": "nf_B2609",
+      "name": "豆二2609"
+    }
+  },
+  {
+    "underlying": "c",
+    "name": "玉米",
+    "exch": "DCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_C0",
+      "name": "玉米主连"
+    },
+    "dominant": {
+      "code": "nf_C2609",
+      "name": "玉米2609"
+    }
+  },
+  {
+    "underlying": "cs",
+    "name": "玉米淀粉",
+    "exch": "DCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_CS0",
+      "name": "玉米淀粉主连"
+    },
+    "dominant": {
+      "code": "nf_CS2609",
+      "name": "玉米淀粉2609"
+    }
+  },
+  {
+    "underlying": "jd",
+    "name": "鸡蛋",
+    "exch": "DCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_JD0",
+      "name": "鸡蛋主连"
+    },
+    "dominant": {
+      "code": "nf_JD2609",
+      "name": "鸡蛋2609"
+    }
+  },
+  {
+    "underlying": "lh",
+    "name": "生猪",
+    "exch": "DCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_LH0",
+      "name": "生猪主连"
+    },
+    "dominant": {
+      "code": "nf_LH2609",
+      "name": "生猪2609"
+    }
+  },
+  {
+    "underlying": "rr",
+    "name": "粳米",
+    "exch": "DCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_RR0",
+      "name": "粳米主连"
+    },
+    "dominant": {
+      "code": "nf_RR2609",
+      "name": "粳米2609"
+    }
+  },
+  {
+    "underlying": "sf",
+    "name": "硅铁",
+    "exch": "CZCE",
+    "kind": "黑色系",
+    "main": {
+      "code": "nf_SF0",
+      "name": "硅铁主连"
+    },
+    "dominant": {
+      "code": "nf_SF2609",
+      "name": "硅铁2609"
+    }
+  },
+  {
+    "underlying": "sm",
+    "name": "锰硅",
+    "exch": "CZCE",
+    "kind": "黑色系",
+    "main": {
+      "code": "nf_SM0",
+      "name": "锰硅主连"
+    },
+    "dominant": {
+      "code": "nf_SM2609",
+      "name": "锰硅2609"
+    }
+  },
+  {
+    "underlying": "ta",
+    "name": "PTA",
+    "exch": "CZCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_TA0",
+      "name": "PTA主连"
+    },
+    "dominant": {
+      "code": "nf_TA2609",
+      "name": "PTA2609"
+    }
+  },
+  {
+    "underlying": "ma",
+    "name": "甲醇",
+    "exch": "CZCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_MA0",
+      "name": "甲醇主连"
+    },
+    "dominant": {
+      "code": "nf_MA2609",
+      "name": "甲醇2609"
+    }
+  },
+  {
+    "underlying": "ur",
+    "name": "尿素",
+    "exch": "CZCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_UR0",
+      "name": "尿素主连"
+    },
+    "dominant": {
+      "code": "nf_UR2609",
+      "name": "尿素2609"
+    }
+  },
+  {
+    "underlying": "pf",
+    "name": "短纤",
+    "exch": "CZCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_PF0",
+      "name": "短纤主连"
+    },
+    "dominant": {
+      "code": "nf_PF2609",
+      "name": "短纤2609"
+    }
+  },
+  {
+    "underlying": "sa",
+    "name": "纯碱",
+    "exch": "CZCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_SA0",
+      "name": "纯碱主连"
+    },
+    "dominant": {
+      "code": "nf_SA2609",
+      "name": "纯碱2609"
+    }
+  },
+  {
+    "underlying": "fg",
+    "name": "玻璃",
+    "exch": "CZCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_FG0",
+      "name": "玻璃主连"
+    },
+    "dominant": {
+      "code": "nf_FG2609",
+      "name": "玻璃2609"
+    }
+  },
+  {
+    "underlying": "px",
+    "name": "对二甲苯",
+    "exch": "CZCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_PX0",
+      "name": "对二甲苯主连"
+    },
+    "dominant": {
+      "code": "nf_PX2609",
+      "name": "对二甲苯2609"
+    }
+  },
+  {
+    "underlying": "pr",
+    "name": "瓶片",
+    "exch": "CZCE",
+    "kind": "化工",
+    "main": {
+      "code": "nf_PR0",
+      "name": "瓶片主连"
+    },
+    "dominant": {
+      "code": "nf_PR2609",
+      "name": "瓶片2609"
+    }
+  },
+  {
+    "underlying": "rm",
+    "name": "菜粕",
+    "exch": "CZCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_RM0",
+      "name": "菜粕主连"
+    },
+    "dominant": {
+      "code": "nf_RM2609",
+      "name": "菜粕2609"
+    }
+  },
+  {
+    "underlying": "oi",
+    "name": "菜油",
+    "exch": "CZCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_OI0",
+      "name": "菜油主连"
+    },
+    "dominant": {
+      "code": "nf_OI2609",
+      "name": "菜油2609"
+    }
+  },
+  {
+    "underlying": "sr",
+    "name": "白糖",
+    "exch": "CZCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_SR0",
+      "name": "白糖主连"
+    },
+    "dominant": {
+      "code": "nf_SR2609",
+      "name": "白糖2609"
+    }
+  },
+  {
+    "underlying": "cf",
+    "name": "棉花",
+    "exch": "CZCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_CF0",
+      "name": "棉花主连"
+    },
+    "dominant": {
+      "code": "nf_CF2609",
+      "name": "棉花2609"
+    }
+  },
+  {
+    "underlying": "cy",
+    "name": "棉纱",
+    "exch": "CZCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_CY0",
+      "name": "棉纱主连"
+    },
+    "dominant": {
+      "code": "nf_CY2609",
+      "name": "棉纱2609"
+    }
+  },
+  {
+    "underlying": "ap",
+    "name": "苹果",
+    "exch": "CZCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_AP0",
+      "name": "苹果主连"
+    },
+    "dominant": {
+      "code": "nf_AP2610",
+      "name": "苹果2610"
+    }
+  },
+  {
+    "underlying": "cj",
+    "name": "红枣",
+    "exch": "CZCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_CJ0",
+      "name": "红枣主连"
+    },
+    "dominant": {
+      "code": "nf_CJ2609",
+      "name": "红枣2609"
+    }
+  },
+  {
+    "underlying": "pk",
+    "name": "花生",
+    "exch": "CZCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_PK0",
+      "name": "花生主连"
+    },
+    "dominant": {
+      "code": "nf_PK2610",
+      "name": "花生2610"
+    }
+  },
+  {
+    "underlying": "rs",
+    "name": "菜籽",
+    "exch": "CZCE",
+    "kind": "农产品",
+    "main": {
+      "code": "nf_RS0",
+      "name": "菜籽主连"
+    },
+    "dominant": {
+      "code": "nf_RS2609",
+      "name": "菜籽2609"
+    }
+  },
+  {
+    "underlying": "sc",
+    "name": "原油",
+    "exch": "INE",
+    "kind": "能源",
+    "main": {
+      "code": "nf_SC0",
+      "name": "原油主连"
+    },
+    "dominant": {
+      "code": "nf_SC2609",
+      "name": "原油2609"
+    }
+  },
+  {
+    "underlying": "IF",
+    "name": "沪深300股指",
+    "exch": "CFFEX",
+    "kind": "股指",
+    "main": {
+      "code": "nf_IF0",
+      "name": "沪深300股指主连"
+    },
+    "dominant": {
+      "code": "nf_IF2609",
+      "name": "沪深300股指2609"
+    }
+  },
+  {
+    "underlying": "IC",
+    "name": "中证500股指",
+    "exch": "CFFEX",
+    "kind": "股指",
+    "main": {
+      "code": "nf_IC0",
+      "name": "中证500股指主连"
+    },
+    "dominant": {
+      "code": "nf_IC2609",
+      "name": "中证500股指2609"
+    }
+  },
+  {
+    "underlying": "IH",
+    "name": "上证50股指",
+    "exch": "CFFEX",
+    "kind": "股指",
+    "main": {
+      "code": "nf_IH0",
+      "name": "上证50股指主连"
+    },
+    "dominant": {
+      "code": "nf_IH2609",
+      "name": "上证50股指2609"
+    }
+  },
+  {
+    "underlying": "IM",
+    "name": "中证1000股指",
+    "exch": "CFFEX",
+    "kind": "股指",
+    "main": {
+      "code": "nf_IM0",
+      "name": "中证1000股指主连"
+    },
+    "dominant": {
+      "code": "nf_IM2609",
+      "name": "中证1000股指2609"
+    }
+  },
+  {
+    "underlying": "T",
+    "name": "10年国债",
+    "exch": "CFFEX",
+    "kind": "国债",
+    "main": {
+      "code": "nf_T0",
+      "name": "10年国债主连"
+    },
+    "dominant": {
+      "code": "nf_T2609",
+      "name": "10年国债2609"
+    }
+  },
+  {
+    "underlying": "TF",
+    "name": "5年国债",
+    "exch": "CFFEX",
+    "kind": "国债",
+    "main": {
+      "code": "nf_TF0",
+      "name": "5年国债主连"
+    },
+    "dominant": {
+      "code": "nf_TF2609",
+      "name": "5年国债2609"
+    }
+  },
+  {
+    "underlying": "TS",
+    "name": "2年国债",
+    "exch": "CFFEX",
+    "kind": "国债",
+    "main": {
+      "code": "nf_TS0",
+      "name": "2年国债主连"
+    },
+    "dominant": {
+      "code": "nf_TS2609",
+      "name": "2年国债2609"
+    }
+  },
+  {
+    "underlying": "TL",
+    "name": "30年国债",
+    "exch": "CFFEX",
+    "kind": "国债",
+    "main": {
+      "code": "nf_TL0",
+      "name": "30年国债主连"
+    },
+    "dominant": {
+      "code": "nf_TL2609",
+      "name": "30年国债2609"
+    }
+  },
+  {
+    "underlying": "ec",
+    "name": "集运指数(欧线)",
+    "exch": "SHFE",
+    "kind": "航运",
+    "main": {
+      "code": "nf_EC0",
+      "name": "集运指数(欧线)主连"
+    },
+    "dominant": {
+      "code": "nf_EC2609",
+      "name": "集运指数(欧线)2609"
+    }
+  }
+]

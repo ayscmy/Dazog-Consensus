@@ -1,0 +1,28 @@
+# 依赖与运行时
+node_modules/
+package-lock.json
+
+# 用户个人数据（现货历史记录，含个人录入数据，不入库）
+spot_history.json
+
+# 临时/日志/缓存
+*.log
+/tmp/
+_tmp/
+.DS_Store
+Thumbs.db
+
+# 部署产物
+*.zip
+dazoguan-consensus-deploy.zip
+
+# IDE / 编辑器
+.idea/
+.vscode/
+*.swp
+
+# 环境变量/凭证
+.env
+.env.*
+*.pem
+*.key
