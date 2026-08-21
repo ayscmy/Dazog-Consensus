@@ -26,3 +26,6 @@ dazoguan-consensus-deploy.zip
 .env.*
 *.pem
 *.key
+
+# 本地项目数据（工作区/自动化记忆，不入库）
+.workbuddy/

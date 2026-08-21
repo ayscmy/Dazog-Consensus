@@ -86,6 +86,53 @@ function parseLine(code, raw) {
   };
 }
 
+// ---------- 股票基本面（腾讯 gtimg）：返回 PE/PB/总市值等，失败返回 null ----------
+async function fetchFundamentalBasic(code) {
+  if (!code || code.startsWith('nf_') || code.startsWith('fx_')) return null;
+  try {
+    const url = `https://qt.gtimg.cn/q=${code}`;
+    const r = await fetch(url, { headers: { 'Referer': 'https://gu.qq.com/', 'User-Agent': 'Mozilla/5.0' } });
+    const buf = Buffer.from(await r.arrayBuffer());
+    const text = buf.toString('latin1');
+    const m = text.match(/="([^"]*)"/);
+    const p = m ? m[1].split('~') : [];
+    if (p.length <= 45) return null;
+    return {
+      name: p[1], code: p[2], price: parseFloat(p[3]) || null, prev: parseFloat(p[4]) || null,
+      open: parseFloat(p[5]) || null, high: parseFloat(p[33]) || null, low: parseFloat(p[34]) || null,
+      volume: parseFloat(p[36]) || null, amount: parseFloat(p[37]) || null,
+      pe: parseFloat(p[39]) || null, amplitude: parseFloat(p[43]) || null,
+      mktcap: parseFloat(p[45]) || null, turnover: parseFloat(p[38]) || null,
+      pb: parseFloat(p[46]) || null, highs52: parseFloat(p[47]) || null, lows52: parseFloat(p[48]) || null
+    };
+  } catch (e) { return null; }
+}
+
+// 基本面评分（0-100）：PE/PB/市值 综合，纯数据驱动
+function fundScoreFromBasic(b) {
+  if (!b) return null;
+  let s = 50;
+  const pe = b.pe, pb = b.pb, cap = b.mktcap;
+  if (pe != null) {
+    if (pe > 0 && pe <= 15) s += 22; else if (pe <= 30) s += 15; else if (pe <= 50) s += 6;
+    else if (pe > 50) s -= 6; else s -= 12; // 亏损
+  }
+  if (pb != null) {
+    if (pb > 0 && pb < 1) s += 14; else if (pb <= 3) s += 9; else if (pb <= 6) s += 3; else s -= 6;
+  }
+  if (cap != null) { if (cap >= 1000) s += 5; else if (cap >= 100) s += 2; }
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+
+// 多周期技术评分（0-100）：4h/1d/30m 方向 + 经典形态偏置
+function techScoreFromBias(dir4h, dir1d, dir30m, patBias) {
+  return Math.max(0, Math.min(100, Math.round(50
+    + (dir4h === 'up' ? 15 : dir4h === 'down' ? -15 : 0)
+    + (dir1d === 'up' ? 15 : dir1d === 'down' ? -15 : 0)
+    + (dir30m === 'up' ? 10 : dir30m === 'down' ? -10 : 0)
+    + (patBias > 0 ? 10 : patBias < 0 ? -10 : 0))));
+}
+
 // 分批并发拉取，单批不超过 50 个 code（避免 URL 超长），返回顺序与入参一致，
 // 取不到的 code 也返回占位对象（price=null），保证前端列表稳定。
 async function fetchQuotes(codes) {
@@ -455,6 +502,10 @@ const server = http.createServer(async (req, res) => {
       const pat4 = A.detectClassicPatterns(h4);
       if (pat4.length) result.patterns = result.patterns.concat(pat4.map(p => ({ ...p, tf: '4h' })));
       if (result.patterns.length) result.patterns = result.patterns.map(p => ({ ...p, tf: p.tf || '1h' }));
+      // 技术面评分（多周期方向 + 形态偏置），基本面评分由 /api/mtf 注入后合成综合分
+      const patBiasAll = (result.patterns || []).reduce((s, p) => s + (p.dir === 'bull' ? 1 : p.dir === 'bear' ? -1 : 0), 0);
+      result.techScore = techScoreFromBias(result.dir4h.bias, result.dir1h.bias, result.dir30m.bias, patBiasAll);
+      result.score = result.techScore;
       // 斐波那契 + 趋势线（4h 图自动叠加）
       result.fib = A.fibLevels(h4);
       result.trend = A.trendlines(h4);
@@ -515,6 +566,58 @@ const server = http.createServer(async (req, res) => {
     const v = { ok: true, ts: Date.now(), data: out };
     KLINE_CACHE.set(cacheKey, { t: Date.now(), v });
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify(v));
+    return;
+  }
+
+  // 多周期方向 + 经典形态 + 日/周开盘价 + 技术/基本面综合评分（列表批量用，30s 缓存）
+  if (url.pathname === '/api/mtf') {
+    const list = (url.searchParams.get('list') || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 160);
+    const withFund = url.searchParams.get('fund') !== '0';
+    const cacheKey = 'mtf_' + list.join(',') + (withFund ? '_f' : '');
+    const cached = KLINE_CACHE.get(cacheKey);
+    if (cached && Date.now() - cached.t < 30000) {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(cached.v));
+      return;
+    }
+    const out = [];
+    await mapLimit(list, 8, async (code) => {
+      try {
+        const { sym, source } = klineTarget(code);
+        const [dayRaw, h4Raw, m30Raw, weekRaw] = await Promise.all([
+          fetchKline(sym, 'day', source), fetchKline(sym, '4h', source),
+          fetchKline(sym, '30m', source), fetchKline(sym, 'week', source)
+        ]);
+        const day = normBars(dayRaw, source).slice(-120);
+        const h4 = normBars(h4Raw, source).slice(-120);
+        const m30 = normBars(m30Raw, source).slice(-200);
+        const week = normBars(weekRaw, source).slice(-60);
+        const daySw = A.detectSwings(day);
+        const dir1d = A.trendFromSwings(daySw.highs, daySw.lows).bias;
+        const dir4h = A.phase4h(h4).bias;
+        const m30Sw = A.detectSwings(m30);
+        const dir30m = A.trendFromSwings(m30Sw.highs, m30Sw.lows).bias;
+        const weekOpen = week.length ? week[week.length - 1].o : null;
+        const dayOpen = day.length ? day[day.length - 1].o : null;
+        const patterns = [].concat(
+          A.detectClassicPatterns(day).map(p => ({ ...p, tf: 'day' })),
+          A.detectClassicPatterns(h4).map(p => ({ ...p, tf: '4h' })),
+          A.detectClassicPatterns(m30).map(p => ({ ...p, tf: '30m' }))
+        );
+        const patBias = patterns.reduce((s, p) => s + (p.dir === 'bull' ? 1 : p.dir === 'bear' ? -1 : 0), 0);
+        const techScore = techScoreFromBias(dir4h, dir1d, dir30m, patBias);
+        let fundScore = null;
+        if (withFund && !code.startsWith('nf_') && !code.startsWith('fx_')) {
+          try { const fb = await fetchFundamentalBasic(code); if (fb) fundScore = fundScoreFromBasic(fb); } catch (e) {}
+        }
+        const score = (fundScore != null) ? Math.max(0, Math.min(100, Math.round(techScore * 0.6 + fundScore * 0.4))) : techScore;
+        out.push({ code, dir1d, dir4h, dir30m, weekOpen, dayOpen, patterns, techScore, fundScore, score });
+      } catch (e) { out.push({ code, error: String(e) }); }
+    });
+    const v = { ok: true, ts: Date.now(), data: out };
+    KLINE_CACHE.set(cacheKey, { t: Date.now(), v });
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify(v));
     return;
   }
