@@ -198,6 +198,27 @@
   .favbtn{background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px;line-height:1}
   .favbtn.on{color:var(--amber)}
   .favbtn:hover{transform:scale(1.2)}
+  /* ---------- 每日涨停复盘 ---------- */
+  .lubar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding:10px 12px;background:linear-gradient(90deg,#fff0f0,#fff7f7);border:1px solid #ffcdd2;border-radius:10px}
+  [data-theme="dark"] .lubar{background:linear-gradient(90deg,#2d1a1a,#2a1f1f);border-color:#5a3a3a}
+  .lustat{text-align:center;min-width:80px}
+  .lustat .n{font-size:20px;font-weight:800;color:var(--up)}
+  .lustat .l{font-size:10.5px;color:var(--muted)}
+  .lubody{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .lusec{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+  .lusec h3{margin:0 0 8px;font-size:13px;color:var(--up)}
+  .luboard{margin-bottom:10px}
+  .luboard .bt{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:12px;font-weight:700;color:var(--text)}
+  .luboard .bt .cnt{background:var(--up);color:#fff;font-size:10px;border-radius:10px;padding:1px 7px}
+  .lurow{display:flex;gap:6px;flex-wrap:wrap}
+  .luitem{border:1px solid var(--border);border-radius:6px;padding:4px 7px;font-size:11.5px;background:var(--panel);cursor:pointer}
+  .luitem:hover{border-color:var(--up)}
+  .luitem .nm{font-weight:700}
+  .luitem .tm{color:var(--muted);font-size:10px}
+  .lusector{margin-bottom:8px}
+  .lusector .st{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;font-weight:700}
+  .lusector .st .cnt{background:var(--amber);color:#fff;font-size:10px;border-radius:10px;padding:1px 7px}
+  @media (max-width:900px){ .lubody{grid-template-columns:1fr} }
   /* 每日+每周宏观 */
   .macrowrap{padding:4px 12px;background:var(--panel);border-bottom:1px solid var(--border);font-size:11.5px;color:var(--text);display:flex;flex-direction:column;gap:2px}
   .macrowrap .ml{display:flex;gap:6px;align-items:baseline}
@@ -325,6 +346,7 @@
     <button class="btn primary" id="planBtn">📋 每日推荐方案</button>
     <button class="btn" id="posBtn">💼 持仓 <span id="posCnt" style="font-weight:700"></span></button>
     <button class="btn" id="addBtn">＋ 加自选</button>
+    <button class="btn" id="limitUpBtn" style="background:#e0231b;color:#fff;border-color:#e0231b">📊 每日涨停</button>
     <span class="grow"></span>
     <button class="btn" id="themeBtn">🌗 主题</button>
   </div>
@@ -459,6 +481,25 @@
     <input id="addInput" class="inp" style="width:70%" placeholder="例如 ag0 或 600519">
     <button class="btn primary" id="addOk">加入</button>
     <div id="addMsg" class="hint" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- 每日涨停复盘 -->
+<div class="modal" id="limitUpModal">
+  <div class="box" style="max-width:900px">
+    <h2>📊 每日涨停复盘 <button class="close" data-close="limitUpModal">关闭</button></h2>
+    <div class="lubar" id="luSummary">加载中…</div>
+    <div class="lubody" id="luBody">
+      <div class="lusec">
+        <h3>🔥 连板梯队</h3>
+        <div id="luBoards">加载中…</div>
+      </div>
+      <div class="lusec">
+        <h3>🏭 行业分布</h3>
+        <div id="luSectors">加载中…</div>
+      </div>
+    </div>
+    <div class="aifoot">🤖 <b>AI 自动分析</b>：数据来自东方财富真实涨停池，<b>仅供参考，不构成任何投资建议</b>。封单金额、炸板次数等以交易所披露为准。</div>
   </div>
 </div>
 
@@ -1256,6 +1297,7 @@ function bindUI(){
   $('posCode').onkeydown=e=>{ if(e.key==='Enter') addPosition(); };
   updatePosCnt();
   $('addBtn').onclick=()=>{ $('addModal').classList.add('show'); $('addInput').focus(); };
+  $('limitUpBtn').onclick=openLimitUp;
   $('addOk').onclick=addSymbol;
   $('addInput').onkeydown=e=>{ if(e.key==='Enter') addSymbol(); };
   $('backBtn').onclick=backToList;
@@ -1282,6 +1324,49 @@ function bindUI(){
   document.querySelectorAll('[data-close]').forEach(b=> b.onclick=()=>$(b.dataset.close).classList.remove('show'));
   document.querySelectorAll('.modal').forEach(m=> m.onclick=e=>{ if(e.target===m) m.classList.remove('show'); });
 }
+
+// ---------- 每日涨停复盘 ----------
+async function openLimitUp(){
+  $('limitUpModal').classList.add('show');
+  $('luSummary').innerHTML = '<span class="muted">正在加载东方财富涨停数据…</span>';
+  $('luBoards').innerHTML = '加载中…';
+  $('luSectors').innerHTML = '加载中…';
+  const d = await API('/api/daily-limit-up').catch(()=>null);
+  if(!d || !d.ok){ $('luSummary').innerHTML = '<span class="down">加载失败：' + (d && d.error ? d.error : '网络或数据源异常') + '</span>'; return; }
+  renderLimitUp(d);
+}
+function renderLimitUp(d){
+  const s = d.summary;
+  const dateStr = d.qdate ? String(d.qdate).replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3') : '';
+  $('luSummary').innerHTML = `
+    <div class="lustat"><div class="n">${s.total}</div><div class="l">涨停家数</div></div>
+    <div class="lustat"><div class="n">${s.firstBoard}</div><div class="l">首板</div></div>
+    <div class="lustat"><div class="n">${s.multiBoard}</div><div class="l">连板</div></div>
+    <div class="lustat"><div class="n">${s.maxBoard}板</div><div class="l">最高连板</div></div>
+    <div class="lustat"><div class="n">${s.avgFund}</div><div class="l">平均封单</div></div>
+    <div class="lustat"><div class="n">${s.earlyCount}</div><div class="l">10点前涨停</div></div>
+    <div class="lustat"><div class="n">${s.bomb}</div><div class="l">炸板家数</div></div>
+    <span class="grow"></span>
+    <span class="muted">数据日期 ${dateStr} · 来源：东方财富</span>`;
+  $('luBoards').innerHTML = d.boards.map(([board, items]) => `
+    <div class="luboard">
+      <div class="bt">${board} <span class="cnt">${items.length}</span></div>
+      <div class="lurow">${items.map(x => `
+        <div class="luitem" data-code="${x.code}">
+          <span class="nm">${x.name}</span> <small>${x.code.replace(/^(sh|sz|bj)/,'')}</small>
+          <div class="tm">${x.firstTime || ''}${x.zbc ? ' · 炸' + x.zbc + '次' : ''} · 封单 ${x.fund >= 1e8 ? (x.fund/1e8).toFixed(2)+'亿' : (x.fund/1e4).toFixed(0)+'万'}</div>
+        </div>`).join('')}</div>
+    </div>`).join('');
+  $('luSectors').innerHTML = d.sectors.slice(0, 20).map(([sector, items]) => `
+    <div class="lusector">
+      <div class="st">${sector} <span class="cnt">${items.length}</span></div>
+      <div class="lurow">${items.map(x => `<div class="luitem" data-code="${x.code}"><span class="nm">${x.name}</span> <small>${x.firstTime || ''}</small></div>`).join('')}</div>
+    </div>`).join('');
+  document.querySelectorAll('#luBody .luitem').forEach(el => {
+    el.onclick = () => { $('limitUpModal').classList.remove('show'); openDetail(el.dataset.code); };
+  });
+}
+
 function applyTheme(t){ document.documentElement.setAttribute('data-theme',t); }
 function restartTimer(){ if(state.timer) clearInterval(state.timer); startTimer(); }
 function startTimer(){ state.timer=setInterval(refreshAll, state.settings.refresh*1000); }

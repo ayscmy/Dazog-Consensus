@@ -818,6 +818,83 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 每日涨停复盘（东财真实数据）
+  if (url.pathname === '/api/daily-limit-up') {
+    try {
+      const dateParam = (url.searchParams.get('date') || '').trim();
+      const cacheKey = 'limitup_' + (dateParam || 'latest');
+      const cached = KLINE_CACHE.get(cacheKey);
+      if (cached && Date.now() - cached.t < 300000) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(cached.v));
+        return;
+      }
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const yest = new Date(now.getTime() - 86400000).toISOString().slice(0, 10).replace(/-/g, '');
+      const dates = dateParam ? [dateParam] : [today, yest];
+      let raw = null;
+      for (const d of dates) {
+        try {
+          const luUrl = `https://push2ex.eastmoney.com/getTopicZTPool?ut=7eea3edcaed734bea9cbfc24409ed989&dpt=wz.ztzt&Pageindex=0&pagesize=500&sort=fbt:asc&date=${d}`;
+          const r = await fetch(luUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://quote.eastmoney.com/' } });
+          const j = await r.json();
+          const data = (j && j.data) || {};
+          if ((data.tc || 0) > 0 || (data.pool || []).length > 0) { raw = j; break; }
+        } catch (e) {}
+      }
+      if (!raw || !raw.data) throw new Error('未能获取涨停数据');
+      const data = raw.data;
+      const pool = (data.pool || []).map(x => {
+        const prefix = x.m === 1 ? 'sh' : (x.m === 0 ? 'sz' : (/^[48]/.test(x.c) ? 'bj' : 'sz'));
+        const code = prefix + x.c;
+        const price = x.p ? x.p / 100 : null;
+        const fund = x.fund || 0;
+        const amount = x.amount || 0;
+        const ltsz = x.ltsz || 0;
+        return {
+          code, name: x.n, price, pct: x.zdp != null ? +x.zdp.toFixed(2) : null,
+          board: x.lbc || 1,
+          firstTime: fmtLimitTime(x.fbt), lastTime: fmtLimitTime(x.lbt),
+          fund, amount: amount > 1e8 ? +(amount / 1e8).toFixed(2) + '亿' : +(amount / 1e4).toFixed(0) + '万',
+          turnover: x.hs != null ? +(x.hs * 100).toFixed(2) : null,
+          marketCap: ltsz ? +(ltsz / 1e8).toFixed(2) : null,
+          sector: x.hybk || '其他', zbc: x.zbc || 0,
+          days: x.zttj ? x.zttj.days : (x.lbc || 1)
+        };
+      });
+      const total = data.tc || pool.length;
+      const byBoard = {}; const bySector = {};
+      pool.forEach(x => {
+        const b = x.board + '板';
+        if (!byBoard[b]) byBoard[b] = [];
+        byBoard[b].push(x);
+        if (!bySector[x.sector]) bySector[x.sector] = [];
+        bySector[x.sector].push(x);
+      });
+      const boards = Object.entries(byBoard).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+      const sectors = Object.entries(bySector).sort((a, b) => b[1].length - a[1].length);
+      const maxBoard = pool.length ? Math.max(...pool.map(x => x.board)) : 0;
+      const avgFund = pool.length ? pool.reduce((s, x) => s + (x.fund || 0), 0) / pool.length : 0;
+      const summary = {
+        total, maxBoard,
+        firstBoard: (byBoard['1板'] || []).length,
+        multiBoard: total - (byBoard['1板'] || []).length,
+        avgFund: avgFund >= 1e8 ? +(avgFund / 1e8).toFixed(2) + '亿' : avgFund >= 1e4 ? +(avgFund / 1e4).toFixed(0) + '万' : Math.round(avgFund) + '元',
+        earlyCount: pool.filter(x => x.firstTime && x.firstTime <= '10:00:00').length,
+        bomb: pool.filter(x => x.zbc > 0).length
+      };
+      const v = { ok: true, ts: Date.now(), qdate: data.qdate, summary, boards, sectors, pool };
+      KLINE_CACHE.set(cacheKey, { t: Date.now(), v });
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(v));
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: false, error: String(e) }));
+    }
+    return;
+  }
+
   // 当日分时（股票=东财 trends2；期货=新浪 getMinLine，含均价线）
   if (url.pathname === '/api/minute') {
     const code = (url.searchParams.get('code') || '').trim();
@@ -1172,6 +1249,12 @@ Sitemap: ${proto}://${host}/sitemap.xml`);
     res.end(buf);
   });
 });
+
+function fmtLimitTime(t) {
+  if (!t && t !== 0) return '';
+  const s = String(t).padStart(6, '0');
+  return s.slice(0, 2) + ':' + s.slice(2, 4) + ':' + s.slice(4, 6);
+}
 
 server.listen(PORT, () => {
   console.log(`PC 盯盘看板已启动: http://localhost:${PORT}`);
