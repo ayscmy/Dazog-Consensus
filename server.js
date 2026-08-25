@@ -145,7 +145,7 @@ async function fetchQuotes(codes) {
   await Promise.all(chunks.map(async (c) => {
     const list = c.join(',');
     try {
-      const res = await fetch(SINA_HOST + list, {
+      const res = await fetchTimeout(SINA_HOST + list, {
         headers: { 'Referer': 'https://finance.sina.com.cn', 'User-Agent': 'Mozilla/5.0' }
       });
       const buf = Buffer.from(await res.arrayBuffer());
@@ -176,6 +176,45 @@ async function mapLimit(items, limit, fn) {
     out.push(...r);
   }
   return out;
+}
+
+// ---------- 数据源健壮性：超时 + 重试 + 统一头（防限流/防封） ----------
+async function fetchTimeout(url, opts = {}, timeout = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    return await fetch(url, { ...opts, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchJson(url, headers = {}, timeout = 8000, retries = 2) {
+  let lastErr = null;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const r = await fetchTimeout(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://data.eastmoney.com/', ...headers }
+      }, timeout);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } catch (e) {
+      lastErr = e;
+      if (i < retries) await new Promise(res => setTimeout(res, 300 * (i + 1)));
+    }
+  }
+  throw lastErr || new Error('fetchJson failed');
+}
+
+// 东财数据中心查询封装：reportName + filter → data 数组
+async function emData(reportName, filter, { columns = 'ALL', pageSize = 5, sortColumns = '', sortTypes = '-1' } = {}) {
+  const q = new URLSearchParams({
+    reportName, columns, pageNumber: '1', pageSize: String(pageSize)
+  });
+  if (sortColumns) { q.set('sortColumns', sortColumns); q.set('sortTypes', sortTypes); }
+  if (filter) q.set('filter', filter);
+  const j = await fetchJson('https://datacenter-web.eastmoney.com/api/data/v1/get?' + q.toString());
+  return (j && j.result && j.result.data) || [];
 }
 
 // 每日推荐方案扫描池（流动性较好的龙头 + 主要期货主连）
@@ -288,19 +327,42 @@ async function fetchRawKline(sym, frame, source) {
       const m = txt.match(/\((\[.*\])\)\s*;?\s*$/s) || txt.match(/=\s*(\[.*\])\s*;?\s*$/s);
       data = m ? JSON.parse(m[1]) : [];
     } else if (frame === 'day' || frame === 'week' || frame === 'month') {
-      // 股票日线用 scale=240；周/月由日线聚合
-      const url = `https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=${sym}&scale=240&ma=no&datalen=600`;
-      const r = await fetch(url, { headers: { 'Referer': 'https://finance.sina.com.cn', 'User-Agent': 'Mozilla/5.0' } });
-      data = await r.json();
+      // 股票日线：新浪优先，被反爬/限流则降级东财（前复权）；周/月由日线聚合
+      data = null;
+      try {
+        const url = `https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=${sym}&scale=240&ma=no&datalen=600`;
+        const r = await fetchTimeout(url, { headers: { 'Referer': 'https://finance.sina.com.cn', 'User-Agent': 'Mozilla/5.0' } });
+        const t = await r.text();
+        if (t && t.trim().startsWith('[')) data = JSON.parse(t);
+      } catch (e) { data = null; }
+      if (!data) {
+        // 降级：腾讯前复权日线（qfqday）
+        const tu = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${sym},day,,,600,qfq`;
+        const j = await fetchJson(tu, { 'Referer': 'https://gu.qq.com/' });
+        const tk = j && j.data && j.data[sym];
+        data = ((tk && (tk.qfqday || tk.day)) || []).map(p => ({ day: p[0], open: p[1], close: p[2], high: p[3], low: p[4], volume: p[5] }));
+      }
       if (frame === 'week' || frame === 'month') {
         data = { __aggregate: true, frame, bars: aggregateBars(A.normalize(data, 'sina_stock'), frame) };
       }
     } else {
-      // 股票 5/15/30/60m；4h 由 60m 聚合（scale=60）
+      // 股票 5/15/30/60m；4h 由 60m 聚合（scale=60）。新浪优先，反爬则降级东财
       const scale = (frame === '4h') ? 60 : (FRAME_MAP[frame].futType || 60);
-      const url = `https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=${sym}&scale=${scale}&ma=no&datalen=500`;
-      const r = await fetch(url, { headers: { 'Referer': 'https://finance.sina.com.cn', 'User-Agent': 'Mozilla/5.0' } });
-      data = await r.json();
+      data = null;
+      try {
+        const url = `https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=${sym}&scale=${scale}&ma=no&datalen=500`;
+        const r = await fetchTimeout(url, { headers: { 'Referer': 'https://finance.sina.com.cn', 'User-Agent': 'Mozilla/5.0' } });
+        const t = await r.text();
+        if (t && t.trim().startsWith('[')) data = JSON.parse(t);
+      } catch (e) { data = null; }
+      if (!data) {
+        // 降级：腾讯分钟线（mkline，字段 [时间,开,收,高,低,量]）
+        const tu = `https://ifzq.gtimg.cn/appstock/app/kline/mkline?param=${sym},m${scale},,320`;
+        const j = await fetchJson(tu, { 'Referer': 'https://gu.qq.com/' });
+        const tk = j && j.data && j.data[sym];
+        const fmtTq = s => (/^\d{12}$/.test(s) ? s.replace(/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1-$2-$3 $4:$5') : s);
+        data = ((tk && tk['m' + scale]) || []).map(p => ({ day: fmtTq(p[0]), open: p[1], close: p[2], high: p[3], low: p[4], volume: p[5] }));
+      }
       if (frame === '4h') {
         // 股票 4h 由 60m 聚合
         data = { __aggregate: true, frame, bars: aggregateBars(A.normalize(data, 'sina_stock'), '4h') };
@@ -656,6 +718,12 @@ const server = http.createServer(async (req, res) => {
   // 返回 data(实时10项) + daily(每日宏观速览) + weekly(每周宏观：日线近5日聚合)
   if (url.pathname === '/api/macro') {
     try {
+      // 北向资金（沪深港通成交 + 领涨股；实时净买入已于 2024-08 起停止披露）
+      let north = null;
+      try {
+        const nb = await emData('RPT_MUTUAL_DEAL_HISTORY', '', { pageSize: 2, sortColumns: 'TRADE_DATE', sortTypes: '-1' });
+        north = nb.map(x => ({ date: (x.TRADE_DATE || '').slice(0, 10), type: x.MUTUAL_TYPE, dealAmt: x.DEAL_AMT, leadStock: x.LEAD_STOCKS_NAME, leadCode: x.LEAD_STOCKS_CODE, indexClose: x.INDEX_CLOSE_PRICE, indexChg: x.INDEX_CHANGE_RATE }));
+      } catch (e) {}
       const codes = ['fx_susdcny', 'fx_susdcnh', 'nf_AU0', 'nf_SC0', 'nf_CU0', 'nf_RB0', 'nf_I0', 'nf_M0', 'sh000001', 'sz399006'];
       const q = await fetchQuotes(codes);
       const m = {}; q.forEach(x => { m[x.code] = x; });
@@ -679,6 +747,10 @@ const server = http.createServer(async (req, res) => {
         text: (function(){
           let s = `今日大盘上证${fmtPct(sh)}、创业板${fmtPct(cyb)}；商品${comUp}涨${comDown}跌（沪金${fmtPct(gold)}/原油${fmtPct(oil)}/沪铜${fmtPct(cu)}/螺纹${fmtPct(rb)}/铁矿${fmtPct(i)}/豆粕${fmtPct(m5)}）；人民币在岸${rmb ? rmb.price : '—'}。`;
           const bullN = (sh && sh.pct > 0 ? 1 : 0) + (cyb && cyb.pct > 0 ? 1 : 0) + comUp;
+          if (north && north.length) {
+            const totalAmt = north.reduce((s, x) => s + (x.dealAmt || 0), 0);
+            if (totalAmt > 0) s += `北向成交 ${(totalAmt / 1e4).toFixed(0)} 亿，领涨股 ${north[0].leadStock || '—'}。`;
+          }
           s += (bullN >= 4) ? '综合宏观偏多（股商共振向上）。' : (bullN <= 1) ? '综合宏观偏空（风险偏好收缩）。' : '宏观中性震荡。';
           return s;
         })()
@@ -708,7 +780,7 @@ const server = http.createServer(async (req, res) => {
       weekly.text = `本周累计：${weekly.points.join('、') || '—'}。${wUp >= wDown ? '周线偏多（多数资产收涨）。' : '周线偏空（多数资产收跌）。'}`;
 
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify({ ok: true, ts: Date.now(), data, daily, weekly, guide: macroGuide(data, m) }));
+      res.end(JSON.stringify({ ok: true, ts: Date.now(), data, daily, weekly, north, guide: macroGuide(data, m) }));
     } catch (e) {
       res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ ok: false, error: String(e) }));
@@ -975,8 +1047,14 @@ const server = http.createServer(async (req, res) => {
         if (!bySector[x.sector]) bySector[x.sector] = [];
         bySector[x.sector].push(x);
       });
+      const leadOf = arr => arr.slice().sort((a, b) => (b.board - a.board) || ((b.fund || 0) - (a.fund || 0)))[0];
       const boards = Object.entries(byBoard).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
       const sectors = Object.entries(bySector).sort((a, b) => b[1].length - a[1].length);
+      // 主线题材归因：按「家数 + 最高连板」排序，标注龙头股
+      const themes = sectors.slice(0, 12).map(([sec, arr]) => {
+        const lead = leadOf(arr);
+        return { name: sec, count: arr.length, maxBoard: lead.board, lead: lead.name, leadCode: lead.code, leadFirstTime: lead.firstTime, items: arr };
+      });
       const maxBoard = pool.length ? Math.max(...pool.map(x => x.board)) : 0;
       const avgFund = pool.length ? pool.reduce((s, x) => s + (x.fund || 0), 0) / pool.length : 0;
       const summary = {
@@ -987,7 +1065,7 @@ const server = http.createServer(async (req, res) => {
         earlyCount: pool.filter(x => x.firstTime && x.firstTime <= '10:00:00').length,
         bomb: pool.filter(x => x.zbc > 0).length
       };
-      const v = { ok: true, ts: Date.now(), qdate: data.qdate, summary, boards, sectors, pool };
+      const v = { ok: true, ts: Date.now(), qdate: data.qdate, summary, boards, sectors, themes, pool };
       KLINE_CACHE.set(cacheKey, { t: Date.now(), v });
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(v));
@@ -1109,22 +1187,51 @@ const server = http.createServer(async (req, res) => {
           highs52: parseFloat(p[47]) || null, lows52: parseFloat(p[48]) || null
         };
       }
-      // 当日 vs 历史均值对比（用日线近 60 根）
-      const { sym, source } = klineTarget(code);
-      const raw = await fetchKline(sym, 'day', source);
-      const bars = normBars(raw, source).slice(-60);
-      const closes = bars.map(b => b.c).filter(x => x != null);
-      const last = closes[closes.length - 1];
-      const avg = (n) => { const a = closes.slice(-n); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : null; };
-      const compare = last != null ? {
-        price: last, vs5: avg(5) ? +((last / avg(5) - 1) * 100).toFixed(2) : null,
-        vs20: avg(20) ? +((last / avg(20) - 1) * 100).toFixed(2) : null,
-        vs60: avg(60) ? +((last / avg(60) - 1) * 100).toFixed(2) : null,
-        hi60: bars.length ? Math.max(...bars.map(b => b.h)) : null,
-        lo60: bars.length ? Math.min(...bars.map(b => b.l)) : null
-      } : null;
+      // 当日 vs 历史均值对比（用日线近 60 根；新浪反爬时降级为 null，不阻塞基本面）
+      let compare = null;
+      try {
+        const { sym, source } = klineTarget(code);
+        const raw = await fetchKline(sym, 'day', source);
+        const bars = normBars(raw, source).slice(-60);
+        const closes = bars.map(b => b.c).filter(x => x != null);
+        const last = closes[closes.length - 1];
+        const avg = (n) => { const a = closes.slice(-n); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : null; };
+        compare = last != null ? {
+          price: last, vs5: avg(5) ? +((last / avg(5) - 1) * 100).toFixed(2) : null,
+          vs20: avg(20) ? +((last / avg(20) - 1) * 100).toFixed(2) : null,
+          vs60: avg(60) ? +((last / avg(60) - 1) * 100).toFixed(2) : null,
+          hi60: bars.length ? Math.max(...bars.map(b => b.h)) : null,
+          lo60: bars.length ? Math.min(...bars.map(b => b.l)) : null
+        } : null;
+      } catch (e) { compare = null; }
+      // 深度数据：财报核心指标 + 股东户数 + 融资融券（东财数据中心，各自失败降级为 null）
+      const sec = code.slice(2);
+      const ext = { report: null, holder: null, margin: null };
+      try {
+        const rep = await emData('RPT_LICO_FN_CPD', `(SECURITY_CODE="${sec}")`, { pageSize: 4, sortColumns: 'REPORTDATE', sortTypes: '-1' });
+        ext.report = rep.map(r => ({
+          date: (r.REPORTDATE || '').slice(0, 10), type: r.DATATYPE || '',
+          eps: r.BASIC_EPS, roe: r.WEIGHTAVG_ROE, bps: r.BPS,
+          revenue: r.TOTAL_OPERATE_INCOME, profit: r.PARENT_NETPROFIT,
+          revYoY: r.YSTZ, profitYoY: r.SJLTZ, grossMargin: r.XSMLL, ocfPerShare: r.MGJYXJJE,
+          dividend: r.ASSIGNDSCRPT || null, industry: r.PUBLISHNAME || null
+        }));
+      } catch (e) {}
+      try {
+        const h = await emData('RPT_HOLDERNUMLATEST', `(SECURITY_CODE="${sec}")`, { pageSize: 3, sortColumns: 'END_DATE', sortTypes: '-1' });
+        ext.holder = h.map(x => ({
+          date: (x.END_DATE || '').slice(0, 10), num: x.HOLDER_NUM,
+          change: x.HOLDER_NUM_CHANGE, ratio: x.HOLDER_NUM_RATIO, closePrice: x.CLOSE_PRICE
+        }));
+      } catch (e) {}
+      try {
+        const mz = await emData('RPTA_WEB_RZRQ_GGMX', `(SCODE="${sec}")`, { pageSize: 3, sortColumns: 'DATE', sortTypes: '-1' });
+        ext.margin = mz.map(x => ({
+          date: (x.DATE || '').slice(0, 10), balance: x.RZYE, netBuy: x.RZJME, buy: x.RZMRE, repay: x.RZCHE, price: x.SPJ
+        }));
+      } catch (e) {}
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify({ ok: true, code, basic, compare }));
+      res.end(JSON.stringify({ ok: true, code, basic, compare, ext }));
     } catch (e) {
       res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ ok: false, error: String(e) }));
@@ -1318,6 +1425,74 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ ok: false, error: String(e) }));
     }
+    return;
+  }
+
+  // ---------- 微信推送（WxPusher）：二维码订阅 + 自动推送 ----------
+  // 替代原飞书 bot：无需公众号认证，用户微信扫码关注应用即可接收每日复盘/盯盘简报
+  const WXPUSHER_TOKEN = process.env.WXPUSHER_APP_TOKEN || '';
+  const WXPUSHER_UIDS_FILE = path.join(__dirname, 'wechat_uids.json');
+  function loadWxUids() {
+    const envUids = (process.env.WXPUSHER_UIDS || '').split(',').map(s => s.trim()).filter(Boolean);
+    let fileUids = [];
+    try { const f = JSON.parse(fs.readFileSync(WXPUSHER_UIDS_FILE, 'utf-8')); if (Array.isArray(f)) fileUids = f.map(String); } catch (e) {}
+    return [...new Set([...envUids, ...fileUids])];
+  }
+
+  // 订阅二维码：服务端调 WxPusher 创建带参数二维码，返回 data.url（图片地址）供前端 img 展示
+  if (url.pathname === '/api/wechat/qrcode') {
+    try {
+      if (!WXPUSHER_TOKEN) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, configured: false, error: '未配置 WXPUSHER_APP_TOKEN：请在环境变量中设置 WxPusher 应用 Token 后重启服务' }));
+        return;
+      }
+      const r = await fetch('https://wxpusher.zjiecode.com/api/fun/create/qrcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appToken: WXPUSHER_TOKEN, extra: 'pc-dingpan', validTime: 1800 })
+      });
+      const j = await r.json();
+      const imgUrl = j && j.data && (j.data.url || j.data.shortUrl || j.data.shorturl);
+      if (j.code !== 1000 || !imgUrl) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, configured: true, error: '创建二维码失败：' + ((j && j.msg) || JSON.stringify(j)) }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: true, configured: true, qrUrl: imgUrl, uids: loadWxUids() }));
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: false, error: String(e) }));
+    }
+    return;
+  }
+
+  // 推送：POST {title, content} → 经 WxPusher 下发到已绑定 UID（收盘/夜盘前自动推送用）
+  if (url.pathname === '/api/wechat/push') {
+    let body = '';
+    req.on('data', c => { body += c; if (body.length > 1e6) req.destroy(); });
+    req.on('end', async () => {
+      try {
+        if (!WXPUSHER_TOKEN) { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ ok: false, error: '未配置 WXPUSHER_APP_TOKEN' })); return; }
+        const uids = loadWxUids();
+        if (!uids.length) { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ ok: false, error: '尚无接收 UID：请让用户扫码订阅，并在 WXPUSHER_UIDS 环境变量 或 wechat_uids.json 填入其 UID' })); return; }
+        const p = JSON.parse(body || '{}');
+        const title = String(p.title || '大纵观共识 · 盯盘提醒').slice(0, 30);
+        const content = String(p.content || '');
+        const r = await fetch('https://wxpusher.zjiecode.com/api/send/message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appToken: WXPUSHER_TOKEN, content: `**${title}**\n\n${content}`, summary: title, contentType: 3, uids, verifyPay: false })
+        });
+        const j = await r.json();
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: true, data: j, sentTo: uids.length }));
+      } catch (e) {
+        res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, error: String(e) }));
+      }
+    });
     return;
   }
 

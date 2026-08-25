@@ -357,6 +357,7 @@
     <button class="btn" id="posBtn">💼 持仓 <span id="posCnt" style="font-weight:700"></span></button>
     <button class="btn" id="addBtn">＋ 加自选</button>
     <button class="btn" id="limitUpBtn" style="background:#e0231b;color:#fff;border-color:#e0231b">📊 每日涨停</button>
+    <button class="btn" id="wechatBtn">📲 微信推送</button>
     <span class="grow"></span>
     <a class="btn" href="https://consensus.dazog.com/" target="_blank" rel="noopener" title="访问官网 consensus.dazog.com" style="text-decoration:none">🌐 官网</a>
     <button class="btn" id="themeBtn">🌗 主题</button>
@@ -467,6 +468,16 @@
     </div>
     <div class="recbody on" id="recPopupBody"></div>
     <div class="hint" style="margin-top:8px">规则引擎自动生成，<b>仅供参考，非投资建议。</b></div>
+  </div>
+</div>
+
+<!-- 自选股定时提醒弹窗（只弹自选 · 每天 9:30 早盘竞价后 + 14:50 尾盘筛选 各一次） -->
+<div class="modal" id="watchAlertModal">
+  <div class="box" style="max-width:520px">
+    <h2><span id="watchAlertTitle">⏰ 自选提醒</span><button class="close" data-close="watchAlertModal">关闭</button></h2>
+    <div class="hint" id="watchAlertSub"></div>
+    <div class="recbody on" id="watchAlertBody"></div>
+    <div class="hint" style="margin-top:8px">仅自选标的 · 每日固定 2 次（早盘竞价后 / 尾盘筛选）· <b>仅供参考，非投资建议。</b></div>
   </div>
 </div>
 
@@ -602,7 +613,7 @@ async function init(){
   await refreshAll();
   try{ const lr=JSON.parse(localStorage.getItem('lastRec')||'null'); if(lr && lr.data) state.lastRec=lr.data; }catch(e){}
   startTimer();
-  startRecPopupTimer();
+  startWatchAlertTimer();
   loadSectors();
   renderFav();
 }
@@ -1494,6 +1505,72 @@ function startRecPopupTimer(){
   state.recTimer = setInterval(popRecommend, 120000);
 }
 
+// ---------- 自选股定时提醒（只弹自选 · 每天 9:30 早盘竞价后 + 14:50 尾盘筛选 各一次） ----------
+const WATCH_ALERT_SLOTS = [
+  { id: 'morning', h: 9, m: 30, title: '🌅 早盘竞价后 · 自选股速览', sub: '开盘竞价结束，自选标的多周期方向与信号' },
+  { id: 'afternoon', h: 14, m: 50, title: '🌇 尾盘筛选 · 自选股关注', sub: '收盘前筛选，自选标的方向确认与尾盘关注' }
+];
+function startWatchAlertTimer(){
+  if(state.watchAlertTimer) clearInterval(state.watchAlertTimer);
+  state.watchAlertTimer = setInterval(checkWatchAlert, 30000);
+}
+function checkWatchAlert(){
+  if(!state.added.length) return;                     // 无自选不弹
+  const now = new Date();
+  const hh = now.getHours(), mm = now.getMinutes();
+  const key = 'watchAlert_' + todayStr();
+  let done = {};
+  try { done = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){}
+  for(const s of WATCH_ALERT_SLOTS){
+    if(done[s.id]) continue;
+    // 到点后 10 分钟内触发一次，避免页面刚开错过
+    if(hh === s.h && mm >= s.m && mm <= s.m + 10){
+      done[s.id] = true;
+      try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
+      popWatchAlert(s);
+      break;
+    }
+  }
+}
+async function popWatchAlert(slot){
+  const codes = addedCodes();
+  if(!codes.length) return;
+  try{
+    const [qd, sd] = await Promise.all([
+      API('/api/quotes?list=' + codes.join(',')),
+      API('/api/batch-scan?list=' + codes.join(','))
+    ]);
+    const qmap = {};
+    (qd && qd.data || []).forEach(q => { qmap[q.code] = q; });
+    const rows = (sd && sd.data || []).filter(x => x.code && !x.error).map(x => {
+      const q = qmap[x.code] || {};
+      const nm = nameOf(x.code);
+      const price = q.price != null ? q.price : x.live;
+      const pct = q.pct;
+      const dirTxt = x.dir === 'up' ? '偏多' : x.dir === 'down' ? '偏空' : '震荡';
+      const flags = (x.flags || []).join(' ');
+      const parts = [flags, x.near ? ('近' + (x.near === 'support' ? '支撑' : '压力')) : ''].filter(Boolean);
+      const pctTxt = pct != null ? ((pct > 0 ? '+' : '') + pct + '%') : '';
+      return {
+        code: x.code, name: nm, bias: dirTxt,
+        head: `${price != null ? price : '—'}${pctTxt ? ' ' + pctTxt : ''} · 评分 ${x.score}`,
+        reason: parts.join(' · ') || '自选标的 · 多周期分析'
+      };
+    });
+    if(!rows.length) return;
+    $('watchAlertTitle').textContent = slot.title;
+    $('watchAlertSub').textContent = `${slot.sub} · ${rows.length} 只自选 · 点击进入详情`;
+    $('watchAlertBody').innerHTML = rows.map(r => `
+      <div class="planrow" data-code="${r.code}">
+        <span class="pn">${r.name}</span>
+        <span class="ps badge ${r.bias === '偏多' ? 'up' : r.bias === '偏空' ? 'down' : ''}">${r.bias}</span>
+        <span class="pm"><b>${r.head}</b><br>${r.reason}</span>
+      </div>`).join('');
+    $('watchAlertBody').querySelectorAll('.planrow').forEach(r => r.onclick = () => { $('watchAlertModal').classList.remove('show'); openDetail(r.dataset.code); });
+    $('watchAlertModal').classList.add('show');
+  }catch(e){}
+}
+
 // ---------- 全列表信号扫描（跨股扫描增强） ----------
 async function batchScan(){
   $('scanModal').classList.add('show');
@@ -1539,6 +1616,8 @@ function bindUI(){
   updatePosCnt();
   $('addBtn').onclick=()=>{ $('addModal').classList.add('show'); $('addInput').focus(); };
   $('limitUpBtn').onclick=openLimitUp;
+  $('wechatBtn').onclick=openWechatPush;
+  $('wxSendBtn').onclick=sendWechatTest;
   $('addOk').onclick=addSymbol;
   $('addInput').onkeydown=e=>{ if(e.key==='Enter') addSymbol(); };
   $('backBtn').onclick=backToList;
@@ -1576,6 +1655,36 @@ async function openLimitUp(){
   if(!d || !d.ok){ $('luSummary').innerHTML = '<span class="down">加载失败：' + (d && d.error ? d.error : '网络或数据源异常') + '</span>'; return; }
   renderLimitUp(d);
 }
+
+// ---------- 微信推送（WxPusher）订阅面板 ----------
+async function openWechatPush(){
+  $('wechatPushModal').classList.add('show');
+  $('wxStatus').textContent = '加载订阅二维码…';
+  $('wxQrcode').style.display = 'inline-block';
+  const d = await API('/api/wechat/qrcode').catch(()=>({ok:false}));
+  if(d.ok){
+    $('wxQrcode').src = d.qrUrl;
+    $('wxStatus').innerHTML = `已配置：${d.uids.length} 个接收 UID。扫码关注后填入 UID 即可接收自动推送。`;
+  } else {
+    $('wxQrcode').style.display = 'none';
+    $('wxStatus').innerHTML = `<span style="color:#ff6b6b">未配置：${d.error || '请在环境变量 WXPUSHER_APP_TOKEN 设置 WxPusher 应用 Token'}</span>`;
+  }
+}
+async function sendWechatTest(){
+  const content = ($('wxContent') && $('wxContent').value || '').trim();
+  if(!content){ toast('请输入推送内容'); return; }
+  $('wxSendBtn').textContent = '发送中…';
+  $('wxSendBtn').disabled = true;
+  try {
+    const r = await fetch('/api/wechat/push', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title:'大纵观共识 · 测试', content }) });
+    const d = await r.json();
+    $('wxSendBtn').textContent = '发送'; $('wxSendBtn').disabled = false;
+    if(d.ok){ toast('已推送，请查看微信'); } else { toast('推送失败：' + (d.error || '未知错误')); }
+  } catch(e){
+    $('wxSendBtn').textContent = '发送'; $('wxSendBtn').disabled = false;
+    toast('推送异常：' + e);
+  }
+}
 function renderLimitUp(d){
   const s = d.summary;
   const dateStr = d.qdate ? String(d.qdate).replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3') : '';
@@ -1598,10 +1707,10 @@ function renderLimitUp(d){
           <div class="tm">${x.firstTime || ''}${x.zbc ? ' · 炸' + x.zbc + '次' : ''} · 封单 ${x.fund >= 1e8 ? (x.fund/1e8).toFixed(2)+'亿' : (x.fund/1e4).toFixed(0)+'万'}</div>
         </div>`).join('')}</div>
     </div>`).join('');
-  $('luSectors').innerHTML = d.sectors.slice(0, 20).map(([sector, items]) => `
+  $('luSectors').innerHTML = (d.themes && d.themes.length ? d.themes : (d.sectors||[]).slice(0,12).map(([name,items])=>({name,count:items.length,maxBoard:Math.max(...items.map(x=>x.board||1)),lead:items[0].name,leadCode:items[0].code,items}))).map(t => `
     <div class="lusector">
-      <div class="st">${sector} <span class="cnt">${items.length}</span></div>
-      <div class="lurow">${items.map(x => `<div class="luitem" data-code="${x.code}"><span class="nm">${x.name}</span> <small>${x.firstTime || ''}</small></div>`).join('')}</div>
+      <div class="st">${t.name} <span class="cnt">${t.count}只</span> <span class="muted">最高${t.maxBoard}板 · 龙头 <b>${t.lead}</b></span></div>
+      <div class="lurow">${t.items.map(x => `<div class="luitem" data-code="${x.code}"><span class="nm">${x.name}</span> <small>${x.board}板${x.firstTime?' · '+x.firstTime:''}</small></div>`).join('')}</div>
     </div>`).join('');
   document.querySelectorAll('#luBody .luitem').forEach(el => {
     el.onclick = () => { $('limitUpModal').classList.remove('show'); openDetail(el.dataset.code); };
@@ -1644,6 +1753,46 @@ async function loadFundamental(code){
   if(!d || !d.basic){ el.innerHTML='<span class="muted">基本面数据暂不可得</span>'; return; }
   const b=d.basic, c=d.compare||{};
   const cls = v => v>0?'up':v<0?'down':'';
+  const fmtW = v => (v==null?'—':((v/1e8).toFixed(2)+'亿'));
+  const ext = d.ext || {};
+  let extHtml = '';
+  if(ext.report && ext.report.length){
+    const r = ext.report[0];
+    extHtml += `<div class="ffbarwrap2 hint" style="margin:10px 0 6px">📊 财报核心指标 <small>${r.type||''} ${r.date||''}</small></div>
+    <div class="kvbar">
+      <div class="kvb"><div class="kl">营收</div><div class="kv">${fmtW(r.revenue)}</div></div>
+      <div class="kvb"><div class="kl">归母净利</div><div class="kv">${fmtW(r.profit)}</div></div>
+      <div class="kvb"><div class="kl">ROE</div><div class="kv">${r.roe!=null?r.roe+'%':'—'}</div></div>
+      <div class="kvb"><div class="kl">毛利率</div><div class="kv">${r.grossMargin!=null?r.grossMargin+'%':'—'}</div></div>
+      <div class="kvb"><div class="kl">EPS</div><div class="kv">${fmt(r.eps)}</div></div>
+      <div class="kvb"><div class="kl">营收同比</div><div class="kv ${cls(r.revYoY)}">${r.revYoY!=null?(r.revYoY>0?'+':'')+r.revYoY+'%':'—'}</div></div>
+      <div class="kvb"><div class="kl">净利同比</div><div class="kv ${cls(r.profitYoY)}">${r.profitYoY!=null?(r.profitYoY>0?'+':'')+r.profitYoY+'%':'—'}</div></div>
+      <div class="kvb"><div class="kl">每股经营现金流</div><div class="kv">${fmt(r.ocfPerShare)}</div></div>
+    </div>`;
+    if(r.dividend) extHtml += `<div class="hint" style="margin-top:4px">🧧 分红：${r.dividend}</div>`;
+    if(r.industry) extHtml += `<div class="hint">🏭 行业：${r.industry}</div>`;
+  }
+  if(ext.holder && ext.holder.length){
+    const h = ext.holder[0];
+    extHtml += `<div class="ffbarwrap2 hint" style="margin:10px 0 6px">👥 股东户数（筹码集中度）</div>
+    <div class="kvbar">
+      <div class="kvb"><div class="kl">股东户数</div><div class="kv">${h.num!=null?(h.num/1e4).toFixed(2)+'万':'—'}</div></div>
+      <div class="kvb"><div class="kl">较上期</div><div class="kv ${h.ratio>0?'down':h.ratio<0?'up':''}">${h.ratio!=null?(h.ratio>0?'+':'')+h.ratio+'%':'—'}</div></div>
+      <div class="kvb"><div class="kl">户数增减</div><div class="kv">${h.change!=null?(h.change>0?'+':'')+h.change:'—'}</div></div>
+      <div class="kvb"><div class="kl">统计日期</div><div class="kv">${h.date||'—'}</div></div>
+    </div>
+    <div class="hint">户数↓=筹码集中(偏多) · 户数↑=筹码分散(偏空)</div>`;
+  }
+  if(ext.margin && ext.margin.length){
+    const mz = ext.margin[0];
+    extHtml += `<div class="ffbarwrap2 hint" style="margin:10px 0 6px">💰 融资融券（杠杆资金）</div>
+    <div class="kvbar">
+      <div class="kvb"><div class="kl">融资余额</div><div class="kv">${fmtW(mz.balance)}</div></div>
+      <div class="kvb"><div class="kl">融资净买入</div><div class="kv ${cls(mz.netBuy)}">${mz.netBuy!=null?(mz.netBuy>0?'+':'')+fmtW(mz.netBuy):'—'}</div></div>
+      <div class="kvb"><div class="kl">融资买入</div><div class="kv">${fmtW(mz.buy)}</div></div>
+      <div class="kvb"><div class="kl">日期</div><div class="kv">${mz.date||'—'}</div></div>
+    </div>`;
+  }
   const cmp = c.price!=null ? `<div class="kvbar">
     <div class="kvb"><div class="kl">当前价</div><div class="kv">${fmt(c.price,c.price>1000?0:2)}</div></div>
     <div class="kvb"><div class="kl">vs 5日均</div><div class="kv ${cls(c.vs5)}">${c.vs5!=null?(c.vs5>0?'+':'')+c.vs5+'%':'—'}</div></div>
@@ -1657,7 +1806,7 @@ async function loadFundamental(code){
     <div class="kvb"><div class="kl">总市值(亿)</div><div class="kv">${fmt(b.mktcap,0)}</div></div>
     <div class="kvb"><div class="kl">换手率</div><div class="kv">${fmt(b.turnover)}%</div></div>
     <div class="kvb"><div class="kl">52周高/低</div><div class="kv" style="font-size:11px">${fmt(b.highs52,0)}/${fmt(b.lows52,0)}</div></div>
-  </div>${cmp}`;
+  </div>${cmp}${extHtml}`;
 }
 async function loadFFlow(code, isFut){
   const el=$('ffCard'); if(!el) return;
@@ -1870,5 +2019,28 @@ function drawCandles(canvas, bars, opts){
 
 init();
 </script>
+<!-- 微信推送订阅（WxPusher：扫码关注 → 自动接收盯盘简报） -->
+<div class="modal" id="wechatPushModal">
+  <div class="box" style="max-width:520px">
+    <h2>📲 微信推送订阅 <button class="close" data-close="wechatPushModal">关闭</button></h2>
+    <div id="wxStatus" class="hint">加载中…</div>
+    <div style="text-align:center;margin:14px 0">
+      <img id="wxQrcode" alt="微信订阅二维码" style="width:220px;height:220px;border:1px solid var(--line);border-radius:8px;background:#fff">
+    </div>
+    <ol style="margin:8px 0 14px 20px;color:var(--sub);font-size:13px;line-height:1.8">
+      <li>用微信扫描上方二维码，关注「大纵观共识」推送应用。</li>
+      <li>在 WxPusher 后台复制你的 UID，填入环境变量 <code>WXPUSHER_UIDS</code>（多用户逗号分隔）或 <code>wechat_uids.json</code>。</li>
+      <li>重启服务后，收盘（15:10 复盘）/ 夜盘前（20:50）将自动推送盯盘简报到微信。</li>
+    </ol>
+    <div style="border-top:1px solid var(--line);padding-top:12px">
+      <div class="lab" style="margin-bottom:6px">发送测试推送</div>
+      <textarea id="wxContent" class="inp" style="width:100%;height:90px;resize:vertical" placeholder="推送内容（支持 markdown）">这是一条来自「大纵观共识」的测试推送，收到说明微信推送已配置成功。</textarea>
+      <div style="margin-top:8px;text-align:right">
+        <button class="btn primary" id="wxSendBtn">发送</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
