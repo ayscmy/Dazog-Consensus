@@ -70,6 +70,15 @@
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
   .sel{border:1px solid var(--border);background:var(--panel2);color:var(--text);padding:5px 6px;border-radius:7px;font-size:12px}
   .inp{border:1px solid var(--border);background:var(--panel2);color:var(--text);padding:5px 8px;border-radius:7px;font-size:12px;width:150px}
+  /* 自动弹窗开关 */
+  .switch{display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none;font-size:12px;color:var(--muted);padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--panel2)}
+  .switch .swlab{white-space:nowrap}
+  .switch input{display:none}
+  .switch .slider{position:relative;width:34px;height:18px;background:var(--border);border-radius:10px;transition:.2s;flex:0 0 auto}
+  .switch .slider::before{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:.2s}
+  .switch input:checked + .slider{background:var(--accent)}
+  .switch input:checked + .slider::before{transform:translateX(16px)}
+  .switch.on{color:var(--text);border-color:var(--accent)}
   .macrobar{display:flex;gap:12px;flex-wrap:wrap;padding:5px 12px;background:var(--panel2);border-bottom:1px solid var(--border);
     font-size:11.5px;color:var(--muted);overflow-x:auto;white-space:nowrap}
   .macrobar .m{color:var(--muted);font-weight:600}
@@ -381,6 +390,11 @@
     </select>
     <button class="btn primary" id="planBtn">📋 每日推荐方案</button>
     <button class="btn" id="dailyBriefBtn">📰 每日简报</button>
+    <label class="switch" id="dailyPopupToggle" title="自动弹出每日简报（早盘竞价/尾盘/期货日报/盘中自选）">
+      <input type="checkbox" id="dailyPopupChk">
+      <span class="slider"></span>
+      <span class="swlab">自动弹窗</span>
+    </label>
     <button class="btn" id="posBtn">💼 持仓 <span id="posCnt" style="font-weight:700"></span></button>
     <button class="btn" id="addBtn">＋ 加自选</button>
     <button class="btn" id="limitUpBtn" style="background:#e0231b;color:#fff;border-color:#e0231b">📊 每日涨停</button>
@@ -611,7 +625,7 @@ const state = {
   markets:{futures:[],stocks:[]},
   watch:[], added: migrateAdded(JSON.parse(localStorage.getItem('added')||'[]')),
   positions: JSON.parse(localStorage.getItem('positions')||'[]'),
-  quotes:{}, scan:{}, settings:{refresh:(navigator.maxTouchPoints>0?5:3), theme:localStorage.getItem('theme')||'light', radar:true, focus:null, tab:'all_stock'},
+  quotes:{}, scan:{}, settings:{refresh:(navigator.maxTouchPoints>0?5:3), theme:localStorage.getItem('theme')||'light', radar:true, focus:null, tab:'all_stock', dailyPopup: localStorage.getItem('dailyPopupOn')!=='0'},
   detail:null, alerts:{}, scanIdx:0, analyzeCache:{}, alltfCache:{},
   mtf:{}, _mtfLast:0, lastRec:null, recPop:{},
   secCache:null, dTimer:null,
@@ -1488,6 +1502,7 @@ function toastMtfPatterns(map){
 const DAILY_POP_KEY = 'dailyPop_';
 function startDailyPopupTimer(){
   if(state.recTimer) clearInterval(state.recTimer);
+  if(!state.settings.dailyPopup) return;   // 开关关闭：不启动自动弹窗
   state.recTimer = setInterval(checkDailyPopup, 30000);
 }
 // 交易时段判断（A股：工作日 9:25-11:30 / 13:00-15:00）
@@ -1503,6 +1518,7 @@ function marketSession(){
   return 'after';                                    // 收盘后
 }
 async function checkDailyPopup(){
+  if(!state.settings.dailyPopup) return;   // 开关关闭：不自动弹窗
   const sess = marketSession();
   if(sess === 'pre' || sess === 'closed' || sess === 'after') return; // 未开市/收盘后全部默认关闭
   const key = DAILY_POP_KEY + todayStr();
@@ -1526,6 +1542,7 @@ async function checkDailyPopup(){
 }
 // 页面首次进入触发一次（init 后）
 async function pageEntryPopup(){
+  if(!state.settings.dailyPopup) return;   // 开关关闭：进入页面不自动弹
   const sess = marketSession();
   if(sess === 'pre' || sess === 'closed') return; // 未开市默认关闭
   await checkDailyPopup();
@@ -1804,6 +1821,18 @@ function bindUI(){
   $('themeBtn').onclick=()=>{ state.settings.theme=state.settings.theme==='light'?'dark':'light'; localStorage.setItem('theme',state.settings.theme); applyTheme(state.settings.theme); };
   $('planBtn').onclick=openPlan;
   $('dailyBriefBtn').onclick=()=> openDailyPopup('futures');
+  // 自动弹窗开关
+  $('dailyPopupChk').checked = !!state.settings.dailyPopup;
+  $('dailyPopupToggle').classList.toggle('on', !!state.settings.dailyPopup);
+  $('dailyPopupChk').onchange = (e)=>{
+    const on = e.target.checked;
+    state.settings.dailyPopup = on;
+    localStorage.setItem('dailyPopupOn', on ? '1' : '0');
+    $('dailyPopupToggle').classList.toggle('on', on);
+    if(on){ startDailyPopupTimer(); pageEntryPopup(); }
+    else if(state.recTimer){ clearInterval(state.recTimer); state.recTimer = null; }
+    toast(on ? '已开启每日自动弹窗' : '已关闭每日自动弹窗');
+  };
   $('addAllRecBtn').onclick=addAllPlanRec;
   $('addAllPopupBtn').onclick=addAllPopupRec;
   $('offRecPopupBtn').onclick=offRecPopup;
