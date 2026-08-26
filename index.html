@@ -197,7 +197,7 @@
   .toast .addbtn{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:7px;padding:5px 10px;font-size:12px}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:120;display:none;align-items:flex-start;justify-content:center;padding:40px 12px;overflow:auto}
   .modal.show{display:flex}
-  .modal .box{background:var(--panel);border-radius:12px;max-width:760px;width:100%;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.35);max-height:86vh;overflow:auto}
+  .modal .box{background:var(--panel);border-radius:12px;max-width:760px;width:100%;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.35);max-height:86vh;overflow:auto;margin:auto}
   .modal .box h2{margin:0 0 10px;font-size:16px;display:flex;align-items:center;gap:8px}
   .modal .close{margin-left:auto;border:1px solid var(--border);background:var(--panel2);border-radius:7px;padding:3px 10px}
   .planrow{display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:7px 9px;margin-bottom:6px;cursor:pointer;background:var(--panel2)}
@@ -1567,6 +1567,22 @@ const DAILY_POP_KEY = 'dailyPop_';
 function popOn(k){ return !!(state.settings.popupSets && state.settings.popupSets[k]); }
 function anyDailyPop(){ return popOn('recommend') || popOn('pattern') || popOn('watch'); }
 function anyNewsPop(){ return popOn('important') || popOn('domestic') || popOn('intl'); }
+// 未选择任何弹窗时，上午竞价/尾盘首次打开默认弹出对应推荐（避免“全关后什么都不弹”）
+function defaultRecSlot(sess){
+  if(sess !== 'morning_open' && sess !== 'tail') return null;
+  const offKey = DAILY_POP_KEY + todayStr();
+  let off = {};
+  try { off = JSON.parse(localStorage.getItem(offKey) || '{}'); } catch(e){}
+  const slot = sess === 'morning_open' ? 'morning' : 'tail';
+  if(off[slot]) return null;                 // 用户当日已关闭该时段推荐
+  const key = 'defaultRec_' + todayStr();
+  let done = {};
+  try { done = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){}
+  if(done[slot]) return null;                // 当日该时段默认推荐已弹过
+  done[slot] = true;
+  try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
+  return slot;
+}
 function labelOf(k){ return {recommend:'每日推荐弹出', pattern:'形态弹出', watch:'自选弹出', important:'重要资讯弹出', domestic:'国内新闻弹出', intl:'国际重大事件弹出'}[k] || k; }
 function setAllPop(on){
   ['recommend','pattern','watch','important','domestic','intl'].forEach(k => { state.settings.popupSets[k] = on; });
@@ -1577,7 +1593,7 @@ function setAllPop(on){
 }
 function startDailyPopupTimer(){
   if(state.recTimer) clearInterval(state.recTimer);
-  if(!anyDailyPop()) return;   // 全部关闭：不启动自动弹窗
+  // 始终运行：即使未选择任何弹窗，仍按“默认”规则在上午/尾盘首次打开时弹出推荐
   state.recTimer = setInterval(checkDailyPopup, 30000);
 }
 // 交易时段判断（A股：工作日 9:25-11:30 / 13:00-15:00）
@@ -1593,9 +1609,14 @@ function marketSession(){
   return 'after';                                    // 收盘后
 }
 async function checkDailyPopup(){
-  if(!anyDailyPop()) return;   // 全部关闭：不自动弹窗
   const sess = marketSession();
   if(sess === 'pre' || sess === 'closed' || sess === 'after') return; // 未开市/收盘后全部默认关闭
+  // 未选择任何弹窗类型：首次打开（每时段一次）默认弹出上午/尾盘推荐，避免“全关后什么都不弹”
+  if(!anyDailyPop()){
+    const slot = defaultRecSlot(sess);
+    if(slot) await openDailyPopup(slot === 'morning' ? 'auction' : 'tail');
+    return;
+  }
   const key = DAILY_POP_KEY + todayStr();
   let done = {};
   try { done = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){}
@@ -1617,9 +1638,9 @@ async function checkDailyPopup(){
 }
 // 页面首次进入触发一次（init 后）
 async function pageEntryPopup(){
-  if(!anyDailyPop()) return;   // 全部关闭：进入页面不自动弹
   const sess = marketSession();
   if(sess === 'pre' || sess === 'closed') return; // 未开市默认关闭
+  // 未选择任何弹窗：本次进入按“默认”弹出上午/尾盘推荐（无默认则保持静默）
   await checkDailyPopup();
 }
 // ---------- 资讯弹窗（重要资讯 / 国内新闻 / 国际重大事件，按开关过滤） ----------
