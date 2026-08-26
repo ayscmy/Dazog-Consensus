@@ -92,7 +92,7 @@
   <tr><td>基本面数据</td><td>仅腾讯 PE/PB/市值 + 东财资金流</td><td><span class="tag t-gap">缺</span>财报三表、股东户数、分红、申万行业、F10、研报、北向、融资融券</td><td>a-stock-data</td></tr>
   <tr><td>打板/题材</td><td>仅有涨停池（东财），无原因/题材</td><td><span class="tag t-gap">缺</span>涨停原因、连板题材归因、人气榜、互动易</td><td>a-stock-data</td></tr>
   <tr><td>AI 决策叙事</td><td>纯规则引擎，无 LLM 叙事</td><td><span class="tag t-gap">缺</span>LLM 决策仪表盘 + 每日复盘推送</td><td>daily_stock_analysis + Hy3</td></tr>
-  <tr><td>回测</td><td>无</td><td><span class="tag t-gap">缺</span>策略历史验证</td><td>自建 / daily_stock_analysis</td></tr>
+  <tr><td>回测</td><td><span class="tag t-have">已有</span>/api/backtest：MA5/20 金叉死叉 + 20日高低点反弹/回落，日线回测输出权益曲线 + 交易明细 + 胜率/盈亏比/回撤</td><td>基础版已落地；可深化多因子/参数寻优</td><td>—</td></tr>
   <tr><td>宏观数据</td><td>仅代理价格（沪金/原油/汇率）</td><td><span class="tag t-gap">缺</span>PMI/社融/真实宏观 + 全球指数</td><td>a-stock-data / OpenBB</td></tr>
   <tr><td>期权链</td><td>入口占位（标注付费）</td><td><span class="tag t-gap">缺</span>ETF 期权 T 型/IV（a-stock-data 已覆盖）</td><td>a-stock-data</td></tr>
   <tr><td>数据源健壮性</td><td>新浪/东财/腾讯，少降级</td><td><span class="tag t-gap">缺</span>限流防封 / 降级 / 本地缓存</td><td>a-stock-data 思路</td></tr>
@@ -144,7 +144,7 @@
   <tr><td class="pri p0">P0</td><td>打板题材归因</td><td><code>/api/daily-limit-up</code> 已加 <code>themes</code>：主线题材聚合 + 龙头 + 连板高度</td><td>a-stock-data 打板层</td><td><span class="tag t-have">✅ 已落地</span></td></tr>
   <tr><td class="pri p0">P0</td><td>微信每日复盘推送</td><td>已落地：WxPusher 扫码订阅 + <code>push_wechat.py</code> + 定时推送</td><td>微信推送服务（WxPusher）</td><td><span class="tag t-have">✅ 已落地</span></td></tr>
   <tr><td class="pri p1">P1</td><td>宏观真实数据</td><td><code>/api/macro</code> 已加北向资金（成交额 + 领涨股，实时净买入已停披露）</td><td>a-stock-data/OpenBB 宏观</td><td><span class="tag t-have">✅ 已落地</span></td></tr>
-  <tr><td class="pri p1">P1</td><td>回测模块</td><td>基于现有 K 线做本地历史回测（低频）</td><td>daily_stock_analysis 范式</td><td>大</td></tr>
+  <tr><td class="pri p1">P1</td><td>回测模块</td><td>✅ 已落地：<code>/api/backtest</code> 基于现有 K 线做本地历史回测（MA 金叉死叉 / 20日高低点反弹回落），输出权益曲线 + 交易明细 + 胜率/盈亏比/最大回撤</td><td>daily_stock_analysis 范式</td><td><span class="tag t-have">✅ 已落地</span></td></tr>
   <tr><td class="pri p1">P1</td><td>数据源健壮性</td><td>已加超时/重试/降级：新浪 K 线被反爬时自动切腾讯前复权</td><td>a-stock-data 工程</td><td><span class="tag t-have">✅ 已落地</span></td></tr>
   <tr><td class="pri p2">P2</td><td>美股/港股视野</td><td>Yahoo/OpenBB 思路建「全球」页</td><td>OpenBB 覆盖广度</td><td>大（谨慎）</td></tr>
   <tr><td class="pri p2">P2</td><td>ETF 期权链</td><td>T 型报价/IV 接入期权页</td><td>a-stock-data 期权层</td><td>中</td></tr>
@@ -158,8 +158,8 @@
   <li><b>不必替换</b>：我们的多周期价格行为引擎 + 期货决策链是核心壁垒，三个工具都不如我们在这块的实战化（5 层决策链 + 铁律）。</li>
   <li><b>最该补的</b>：① 基本面/筹码深度（a-stock-data）→ 让选股从「价格行为」升级为「价格行为+基本面+筹码」；② 微信复盘推送（微信订阅推送）→ 把盯盘变成「收盘自动出报告」；③ 宏观真实数据。</li>
   <li><b>融合方式</b>：保持 Node 主导、Python 辅助（与现有 gen_*.py 一致）；不用 AGPL 代码侵入主仓。</li>
-  <li><b>已完成</b>：P0 全部三项 + P1 宏观、数据源健壮性均已落地（2026-08-25）。基本面/筹码、打板题材、微信推送、北向宏观、K 线降级五项已验证通过。</li>
-  <li><b>剩余待做</b>：P1 回测模块（大）、P2 美股/港股视野（大，谨慎）、P2 ETF 期权链（中）——需另行排期，收益与投入需再评估。</li>
+  <li><b>已完成</b>：P0 全部三项 + P1 宏观、数据源健壮性、回测模块均已落地（截至 2026-08-21）。基本面/筹码、打板题材、微信推送、北向宏观、K 线降级、策略回测六项已验证通过。</li>
+  <li><b>剩余待做</b>：P2 美股/港股视野（大，谨慎）、P2 ETF 期权链（中）——需另行排期，收益与投入需再评估。</li>
 </ul>
 </div>
 </body>

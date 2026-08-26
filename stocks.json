@@ -36,6 +36,12 @@
     "sector": "指数"
   },
   {
+    "code": "sh000852",
+    "name": "中证1000",
+    "type": "index",
+    "sector": "指数"
+  },
+  {
     "code": "sz399905",
     "name": "中证500",
     "type": "index",

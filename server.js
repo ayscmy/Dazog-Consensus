@@ -15,7 +15,7 @@ function classify(code) {
   if (code.startsWith('fx_')) return 'forex';
   if (code.startsWith('nf_')) {
     const sym = code.slice(3).toUpperCase();
-    if (/^(IF|IC|IH|T|TF|TS|TL)/.test(sym)) return 'indexFut';
+    if (/^(IF|IC|IH|IM|T|TF|TS|TL)/.test(sym)) return 'indexFut';
     return 'commFut';
   }
   return 'stock'; // sh/sz 股票与指数共用股票格式
@@ -233,7 +233,7 @@ const DEFAULT_PLAN_POOL = [
 function klineTarget(code) {
   if (code.startsWith('nf_')) {
     let s = code.slice(3);
-    if (/^I[CFH]0?$/i.test(s)) s = s.toUpperCase();
+    if (/^I[CFHM]0?$/i.test(s)) s = s.toUpperCase();
     else s = s.toLowerCase();
     return { sym: s, source: 'fut' };
   }
@@ -825,6 +825,264 @@ const server = http.createServer(async (req, res) => {
 
   function fmtPct(x){ if(!x || x.pct == null) return '—'; return (x.pct > 0 ? '+' : '') + x.pct + '%'; }
 
+  // 股指期货价差日报：期现价差 + 跨期价差 + 跨品种比值
+  // 数据来自新浪实时行情 + 本地日线 K 线；历史分位数按近 120 个交易日样本估算
+  if (url.pathname === '/api/futures-spread') {
+    try {
+      const idxMap = [
+        { key: 'IF', name: '沪深300股指', futMain: 'nf_IF0', futDom: 'nf_IF2609', spot: 'sh000300', spotName: '沪深300' },
+        { key: 'IH', name: '上证50股指', futMain: 'nf_IH0', futDom: 'nf_IH2609', spot: 'sh000016', spotName: '上证50' },
+        { key: 'IC', name: '中证500股指', futMain: 'nf_IC0', futDom: 'nf_IC2609', spot: 'sz399905', spotName: '中证500' },
+        { key: 'IM', name: '中证1000股指', futMain: 'nf_IM0', futDom: 'nf_IM2609', spot: 'sh000852', spotName: '中证1000' }
+      ];
+      const allCodes = idxMap.flatMap(x => [x.futMain, x.futDom, x.spot]);
+      const quotes = await fetchQuotes(allCodes);
+      const qm = {}; quotes.forEach(x => { qm[x.code] = x; });
+
+      function pctRank(arr, v) {
+        if (!arr || !arr.length || v == null) return null;
+        const sorted = arr.slice().sort((a, b) => a - b);
+        const n = sorted.length;
+        let lo = 0; while (lo < n && sorted[lo] < v) lo++;
+        let le = 0; while (le < n && sorted[le] <= v) le++;
+        return Math.round(((lo + le) / 2 / n) * 100);
+      }
+
+      const basis = [], cross = [], ratio = [];
+      const series = [];
+
+      for (const x of idxMap) {
+        const fm = qm[x.futMain], fd = qm[x.futDom], sp = qm[x.spot];
+        // 1) 期现价差
+        if (fm && fm.price != null && sp && sp.price != null) {
+          const val = fm.price - sp.price;
+          const pct = val / sp.price * 100;
+          // 历史分位：用日线收盘价估算基差历史（期货主连与指数日线）
+          let histPct = null, histMed = null, histSamples = [];
+          try {
+            const [fr, sr] = await Promise.all([
+              fetchKline(klineTarget(x.futMain).sym, 'day', 'fut'),
+              fetchKline(klineTarget(x.spot).sym, 'day', 'stock')
+            ]);
+            const fb = normBars(fr, 'fut').slice(-120);
+            const sb = normBars(sr, 'stock').slice(-120);
+            const len = Math.min(fb.length, sb.length);
+            histSamples = [];
+            for (let i = 0; i < len; i++) {
+              if (fb[i].c != null && sb[i].c != null) histSamples.push((fb[i].c - sb[i].c) / sb[i].c * 100);
+            }
+            if (histSamples.length) {
+              histMed = histSamples.slice().sort((a, b) => a - b)[Math.floor(histSamples.length / 2)];
+              histPct = pctRank(histSamples, pct);
+            }
+          } catch (e) {}
+          basis.push({
+            key: x.key, name: x.name, fut: x.futMain, spot: x.spot, spotName: x.spotName,
+            futPrice: fm.price, spotPrice: sp.price, value: +val.toFixed(2), pct: +pct.toFixed(2),
+            change: fm.pct != null ? fm.pct : null, histMed: histMed != null ? +histMed.toFixed(2) : null, histPct
+          });
+        }
+        // 2) 跨期价差（主力-当月）
+        if (fm && fm.price != null && fd && fd.price != null) {
+          const val = fm.price - fd.price;
+          const pct = fd.price ? val / fd.price * 100 : null;
+          let histPct = null, histMed = null, histSamples = [];
+          try {
+            const [fr, dr] = await Promise.all([
+              fetchKline(klineTarget(x.futMain).sym, 'day', 'fut'),
+              fetchKline(klineTarget(x.futDom).sym, 'day', 'fut')
+            ]);
+            const fb = normBars(fr, 'fut').slice(-120);
+            const db = normBars(dr, 'fut').slice(-120);
+            const len = Math.min(fb.length, db.length);
+            histSamples = [];
+            for (let i = 0; i < len; i++) {
+              if (fb[i].c != null && db[i].c != null) histSamples.push((fb[i].c - db[i].c) / db[i].c * 100);
+            }
+            if (histSamples.length) {
+              histMed = histSamples.slice().sort((a, b) => a - b)[Math.floor(histSamples.length / 2)];
+              histPct = pctRank(histSamples, pct);
+            }
+          } catch (e) {}
+          cross.push({
+            key: x.key, name: x.name, near: '当月', far: '主力',
+            nearPrice: fd.price, farPrice: fm.price, value: +val.toFixed(2), pct: pct != null ? +pct.toFixed(2) : null,
+            histMed: histMed != null ? +histMed.toFixed(2) : null, histPct
+          });
+        }
+      }
+
+      // 3) 跨品种比值：IF/IH、IC/IH、IM/IC、IF/IC
+      const ratioPairs = [
+        { name: 'IF/IH', a: 'nf_IF0', b: 'nf_IH0', aName: '沪深300', bName: '上证50' },
+        { name: 'IC/IH', a: 'nf_IC0', b: 'nf_IH0', aName: '中证500', bName: '上证50' },
+        { name: 'IM/IC', a: 'nf_IM0', b: 'nf_IC0', aName: '中证1000', bName: '中证500' },
+        { name: 'IF/IC', a: 'nf_IF0', b: 'nf_IC0', aName: '沪深300', bName: '中证500' }
+      ];
+      for (const rp of ratioPairs) {
+        const qa = qm[rp.a], qb = qm[rp.b];
+        if (qa && qa.price != null && qb && qb.price != null && qb.price !== 0) {
+          const val = qa.price / qb.price;
+          const chg = ((qa.price / qb.price) - (qa.prev && qb.prev ? qa.prev / qb.prev : val)) / val * 100;
+          let histPct = null, histMed = null, histSamples = [];
+          try {
+            const [ar, br] = await Promise.all([
+              fetchKline(klineTarget(rp.a).sym, 'day', 'fut'),
+              fetchKline(klineTarget(rp.b).sym, 'day', 'fut')
+            ]);
+            const ab = normBars(ar, 'fut').slice(-120);
+            const bb = normBars(br, 'fut').slice(-120);
+            const len = Math.min(ab.length, bb.length);
+            histSamples = [];
+            for (let i = 0; i < len; i++) {
+              if (ab[i].c != null && bb[i].c != null) histSamples.push(ab[i].c / bb[i].c);
+            }
+            if (histSamples.length) {
+              histMed = histSamples.slice().sort((a, b) => a - b)[Math.floor(histSamples.length / 2)];
+              histPct = pctRank(histSamples, val);
+            }
+          } catch (e) {}
+          ratio.push({
+            name: rp.name, a: rp.a, b: rp.b, aName: rp.aName, bName: rp.bName,
+            value: +val.toFixed(4), change: chg != null && isFinite(chg) ? +chg.toFixed(2) : null,
+            histMed: histMed != null ? +histMed.toFixed(4) : null, histPct
+          });
+        }
+      }
+
+      // 取近 60 个交易日序列用于前端折线图（以 IF 期现价差为例，其余同理）
+      try {
+        const [fr, sr] = await Promise.all([
+          fetchKline(klineTarget('nf_IF0').sym, 'day', 'fut'),
+          fetchKline(klineTarget('sh000300').sym, 'day', 'stock')
+        ]);
+        const fb = normBars(fr, 'fut').slice(-60);
+        const sb = normBars(sr, 'stock').slice(-60);
+        const len = Math.min(fb.length, sb.length);
+        const sIF = [];
+        for (let i = 0; i < len; i++) {
+          if (fb[i].c != null && sb[i].c != null) sIF.push({ t: fb[i].t, basis: +(fb[i].c - sb[i].c).toFixed(2), fut: fb[i].c, spot: sb[i].c });
+        }
+        series.push({ name: 'IF期现价差', data: sIF });
+      } catch (e) {}
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: true, ts: Date.now(), generated: new Date().toLocaleString('zh-CN', { hour12: false }), basis, cross, ratio, series }));
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: false, error: String(e) }));
+    }
+    return;
+  }
+
+  // 极简本地回测：基于日线做 MA 金叉/死叉 或 支撑反弹/压力回落
+  // 仅用于验证策略思路，不替代实盘；手续费与滑点未计入
+  if (url.pathname === '/api/backtest') {
+    try {
+      const code = (url.searchParams.get('code') || '').trim();
+      const strategy = url.searchParams.get('strategy') || 'ma_cross';
+      const days = parseInt(url.searchParams.get('days') || '120', 10);
+      const initial = parseFloat(url.searchParams.get('initial') || '100000');
+      if (!code) { res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ ok: false, error: 'code required' })); return; }
+      const { sym, source } = klineTarget(code);
+      const raw = await fetchKline(sym, 'day', source);
+      const bars = normBars(raw, source).slice(-Math.max(days, 30));
+      if (bars.length < 30) { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify({ ok: true, error: '历史 K 线不足，无法回测' })); return; }
+
+      function ma(n, endIdx) {
+        let s = 0, c = 0;
+        for (let i = Math.max(0, endIdx - n + 1); i <= endIdx; i++) { s += bars[i].c; c++; }
+        return c ? s / c : null;
+      }
+
+      const equity = [{ t: bars[0].t, value: initial }];
+      const trades = [];
+      let position = 0, cash = initial, entry = null, entryBar = null;
+      let win = 0, loss = 0, maxEq = initial, maxDD = 0;
+
+      for (let i = 25; i < bars.length; i++) {
+        const b = bars[i];
+        const prev = bars[i - 1];
+        const signal = (() => {
+          if (strategy === 'ma_cross') {
+            const fast = ma(5, i - 1), slow = ma(20, i - 1);
+            const fast2 = ma(5, i - 2), slow2 = ma(20, i - 2);
+            if (fast2 && slow2 && fast && slow) {
+              if (fast2 <= slow2 && fast > slow) return 'buy';
+              if (fast2 >= slow2 && fast < slow) return 'sell';
+            }
+          } else if (strategy === 'sr_bounce') {
+            // 价格低于前20日低点 + 当日收涨 = 反弹买入；价格高于前20日高点 + 当日收跌 = 回落开空
+            const lo20 = Math.min(...bars.slice(i - 20, i).map(x => x.l));
+            const hi20 = Math.max(...bars.slice(i - 20, i).map(x => x.h));
+            if (prev.l <= lo20 && b.c > prev.c) return 'buy';
+            if (prev.h >= hi20 && b.c < prev.c) return 'sell';
+          }
+          return null;
+        })();
+
+        // 平仓逻辑
+        if (position !== 0 && entry != null) {
+          const target = entry * (position > 0 ? 1.05 : 0.95);
+          const stop = entry * (position > 0 ? 0.97 : 1.03);
+          const exitBySignal = (position > 0 && signal === 'sell') || (position < 0 && signal === 'buy');
+          const exitByTP = position > 0 ? b.h >= target : b.l <= target;
+          const exitBySL = position > 0 ? b.l <= stop : b.h >= stop;
+          if (exitBySignal || exitByTP || exitBySL) {
+            const exitPrice = exitBySL ? stop : (exitByTP ? target : b.o);
+            const pnl = (exitPrice - entry) * position;
+            trades.push({ entry: entryBar, exit: b.t, side: position > 0 ? '多' : '空', entryPrice: +entry.toFixed(2), exitPrice: +exitPrice.toFixed(2), pnl: +pnl.toFixed(2) });
+            if (pnl >= 0) win++; else loss++;
+            cash += pnl;
+            position = 0; entry = null; entryBar = null;
+          }
+        }
+
+        // 开仓逻辑
+        if (position === 0 && signal) {
+          position = signal === 'buy' ? 1 : -1;
+          entry = b.o;
+          entryBar = b.t;
+        }
+
+        const eq = cash + (position ? (b.c - entry) * position : 0);
+        equity.push({ t: b.t, value: +eq.toFixed(2) });
+        maxEq = Math.max(maxEq, eq);
+        maxDD = Math.max(maxDD, (maxEq - eq) / maxEq);
+      }
+
+      // 强平最后持仓
+      if (position !== 0 && entry != null) {
+        const last = bars[bars.length - 1];
+        const pnl = (last.c - entry) * position;
+        trades.push({ entry: entryBar, exit: last.t, side: position > 0 ? '多' : '空', entryPrice: +entry.toFixed(2), exitPrice: last.c, pnl: +pnl.toFixed(2) });
+        if (pnl >= 0) win++; else loss++;
+        cash += pnl; position = 0;
+      }
+
+      const final = equity[equity.length - 1].value;
+      const totalRet = +((final / initial - 1) * 100).toFixed(2);
+      const totalTrades = trades.length;
+      const winRate = totalTrades ? Math.round(win / totalTrades * 100) : 0;
+      const profitFactor = trades.length ? (() => {
+        const gains = trades.filter(t => t.pnl > 0).reduce((s, t) => s + t.pnl, 0);
+        const losses = Math.abs(trades.filter(t => t.pnl < 0).reduce((s, t) => s + t.pnl, 0));
+        return losses ? +(gains / losses).toFixed(2) : null;
+      })() : null;
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({
+        ok: true, code, strategy, days: bars.length, initial,
+        final, totalRet, totalTrades, winRate, profitFactor, maxDD: +(maxDD * 100).toFixed(2),
+        trades, equity
+      }));
+    } catch (e) {
+      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: false, error: String(e) }));
+    }
+    return;
+  }
+
   // 每日推荐方案（规则引擎扫描推荐池，生成排序关注列表）
   if (url.pathname === '/api/daily-plan') {
     try {
@@ -913,9 +1171,10 @@ const server = http.createServer(async (req, res) => {
       const auction = qStocks.filter(x => x.open != null && x.prev != null && x.prev !== 0)
         .map(x => {
           const gap = (x.open - x.prev) / x.prev * 100;
+          const bias = gap > 0.15 ? '偏多' : gap < -0.15 ? '偏空' : '中性';
           const strength = Math.abs(gap) < 0.15 ? '中性' : gap > 1 ? '强做多' : gap > 0 ? '偏多' : gap < -1 ? '强做空' : '偏空';
           return {
-            code: x.code, name: NAMES[x.code] || x.code, gap: +gap.toFixed(2), strength,
+            code: x.code, name: NAMES[x.code] || x.code, gap: +gap.toFixed(2), strength, bias,
             price: x.open, reason: `竞价${gap > 0 ? '高开' : '低开'} ${Math.abs(gap).toFixed(2)}%(${strength})；${gap > 0 ? '开盘主动买入占优' : '开盘主动卖出占优'}。${macroTxt}技术：待盘中确认量价。`
           };
         }).sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap)).slice(0, 10);
