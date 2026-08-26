@@ -79,6 +79,25 @@
   .switch input:checked + .slider{background:var(--accent)}
   .switch input:checked + .slider::before{transform:translateX(16px)}
   .switch.on{color:var(--text);border-color:var(--accent)}
+  /* 弹窗设置面板 */
+  .popset{display:flex;flex-direction:column;gap:2px;margin:6px 0}
+  .popset .row{display:flex;align-items:center;justify-content:space-between;padding:8px 6px;border-bottom:1px solid var(--border)}
+  .popset .row:last-child{border-bottom:none}
+  .popset .row .lab{display:flex;flex-direction:column;gap:1px}
+  .popset .row .lab b{font-size:13px;color:var(--text)}
+  .popset .row .lab span{font-size:11px;color:var(--muted)}
+  .popset .acts{display:flex;gap:8px;margin-top:10px}
+  /* 资讯弹窗 */
+  .newstab{display:flex;gap:6px;margin:8px 0;border-bottom:1px solid var(--border);padding-bottom:6px;flex-wrap:wrap}
+  .newstab .nt{cursor:pointer;padding:5px 12px;border-radius:7px;font-size:12px;color:var(--muted);border:1px solid var(--border)}
+  .newstab .nt.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .newslist2{max-height:46vh;overflow:auto;display:flex;flex-direction:column;gap:8px}
+  .newsit{border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:var(--panel2)}
+  .newsit .t{font-size:12.5px;color:var(--text);line-height:1.5}
+  .newsit .tm{font-size:10.5px;color:var(--muted);margin-top:3px}
+  .newsit.intl{border-left:3px solid var(--amber)}
+  .newsit.important{border-left:3px solid var(--accent)}
+  .newsnote{font-size:11px;color:var(--muted);padding:6px 2px}
   .macrobar{display:flex;gap:12px;flex-wrap:wrap;padding:5px 12px;background:var(--panel2);border-bottom:1px solid var(--border);
     font-size:11.5px;color:var(--muted);overflow-x:auto;white-space:nowrap}
   .macrobar .m{color:var(--muted);font-weight:600}
@@ -390,11 +409,7 @@
     </select>
     <button class="btn primary" id="planBtn">📋 每日推荐方案</button>
     <button class="btn" id="dailyBriefBtn">📰 每日简报</button>
-    <label class="switch" id="dailyPopupToggle" title="自动弹出每日简报（早盘竞价/尾盘/期货日报/盘中自选）">
-      <input type="checkbox" id="dailyPopupChk">
-      <span class="slider"></span>
-      <span class="swlab">自动弹窗</span>
-    </label>
+    <button class="btn" id="popupSetsBtn" title="弹窗设置：按类型开启/关闭自动弹出">⚙ 弹窗设置</button>
     <button class="btn" id="posBtn">💼 持仓 <span id="posCnt" style="font-weight:700"></span></button>
     <button class="btn" id="addBtn">＋ 加自选</button>
     <button class="btn" id="limitUpBtn" style="background:#e0231b;color:#fff;border-color:#e0231b">📊 每日涨停</button>
@@ -496,6 +511,40 @@
     <div class="recbody" id="recTail"></div>
     <div class="recbody" id="recFutures"></div>
     <div class="hint" style="margin-top:8px">规则引擎基于价格行为学（多周期+支撑压力+反转信号）与真实宏观自动生成操作理由。<b>仅供参考，非投资建议。</b></div>
+  </div>
+</div>
+
+<!-- 弹窗设置 -->
+<div class="modal" id="popupSetsModal">
+  <div class="box" style="max-width:560px">
+    <h2>⚙ 弹窗设置 <span class="hint">按类型开启 / 关闭自动弹出</span><button class="close" data-close="popupSetsModal">关闭</button></h2>
+    <div class="popset" id="popSetList">
+      <label class="row"><span class="lab"><b>每日推荐弹出</b><span>早盘竞价 / 尾盘 / 期货日报（每日简报）</span></span><span class="switch"><input type="checkbox" data-pop="recommend"><span class="slider"></span></span></label>
+      <label class="row"><span class="lab"><b>形态弹出</b><span>多周期方向确认 + 反转形态提示</span></span><span class="switch"><input type="checkbox" data-pop="pattern"><span class="slider"></span></span></label>
+      <label class="row"><span class="lab"><b>自选弹出</b><span>盘中仅弹出自选标的速览</span></span><span class="switch"><input type="checkbox" data-pop="watch"><span class="slider"></span></span></label>
+      <label class="row"><span class="lab"><b>重要资讯弹出</b><span>政策会议日历 + 宏观主线</span></span><span class="switch"><input type="checkbox" data-pop="important"><span class="slider"></span></span></label>
+      <label class="row"><span class="lab"><b>国内新闻弹出</b><span>每日 / 每周宏观速览</span></span><span class="switch"><input type="checkbox" data-pop="domestic"><span class="slider"></span></span></label>
+      <label class="row"><span class="lab"><b>国际重大事件弹出</b><span>全球市场快讯（美股 / 美联储 / 地缘等）</span></span><span class="switch"><input type="checkbox" data-pop="intl"><span class="slider"></span></span></label>
+    </div>
+    <div class="acts">
+      <button class="btn primary" id="popAllOn">全部开启</button>
+      <button class="btn" id="popAllOff">全部关闭</button>
+    </div>
+    <div class="hint" style="margin-top:8px">手动点「📰 每日简报」始终可用，不受以上开关影响。</div>
+  </div>
+</div>
+
+<!-- 资讯弹窗 -->
+<div class="modal" id="newsModal">
+  <div class="box" style="max-width:680px">
+    <h2>📰 资讯速递 <span class="hint" id="newsMeta">实时宏观 + 政策 + 国际快讯</span><button class="close" data-close="newsModal">关闭</button></h2>
+    <div class="newstab" id="newsTabs">
+      <div class="nt on" data-nt="important">重要资讯</div>
+      <div class="nt" data-nt="domestic">国内新闻</div>
+      <div class="nt" data-nt="intl">国际重大事件</div>
+    </div>
+    <div class="newslist2" id="newsList">加载中…</div>
+    <div class="newsnote" id="newsNote"></div>
   </div>
 </div>
 
@@ -625,7 +674,8 @@ const state = {
   markets:{futures:[],stocks:[]},
   watch:[], added: migrateAdded(JSON.parse(localStorage.getItem('added')||'[]')),
   positions: JSON.parse(localStorage.getItem('positions')||'[]'),
-  quotes:{}, scan:{}, settings:{refresh:(navigator.maxTouchPoints>0?5:3), theme:localStorage.getItem('theme')||'light', radar:true, focus:null, tab:'all_stock', dailyPopup: localStorage.getItem('dailyPopupOn')!=='0'},
+  quotes:{}, scan:{}, settings:{refresh:(navigator.maxTouchPoints>0?5:3), theme:localStorage.getItem('theme')||'light', radar:true, focus:null, tab:'all_stock',
+    popupSets: Object.assign({recommend:true, pattern:true, watch:true, important:true, domestic:true, intl:true}, (function(){ try{ return JSON.parse(localStorage.getItem('popupSets')||'{}'); }catch(e){ return {}; } })())},
   detail:null, alerts:{}, scanIdx:0, analyzeCache:{}, alltfCache:{},
   mtf:{}, _mtfLast:0, lastRec:null, recPop:{},
   secCache:null, dTimer:null,
@@ -679,10 +729,23 @@ async function init(){
   try{ const lr=JSON.parse(localStorage.getItem('lastRec')||'null'); if(lr && lr.data) state.lastRec=lr.data; }catch(e){}
   startTimer();
   startDailyPopupTimer();
+  startNewsTimer();
   loadSectors();
   renderFav();
   // 页面进入后触发一次自动弹窗（未开市默认关闭）
   setTimeout(pageEntryPopup, 1500);
+  // 页面进入后触发一次资讯弹窗（每天仅一次，按开关过滤）
+  setTimeout(()=>{
+    if(!anyNewsPop()) return;
+    const key = NEWS_POP_KEY + todayStr();
+    let done = {};
+    try { done = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){}
+    if(done.shown) return;
+    done.shown = true;
+    try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
+    newsCache = null;
+    openNewsPopup(true);
+  }, 2200);
 }
 function buildWatch(){
   const f = state.markets.futures.map(x=>({code:x.code,name:x.name,type:'future',sub:x.sub,sector:x.sector}));
@@ -1484,6 +1547,7 @@ function addAllPopupRec(){
 }
 // 三周期方向 + 形态 弹窗（列表扫描后触发，用于"1天/4小时/30分钟方向确认弹出形态"）
 function toastMtfPatterns(map){
+  if(!popOn('pattern')) return;   // 形态弹出开关关闭：不提示
   const items = Object.values(map||{});
   if(!items.length) return;
   const hot = items.filter(x=>x && (x.patterns&&x.patterns.length) && (x.dir4h==='up'||x.dir4h==='down')).slice(0,3);
@@ -1500,9 +1564,20 @@ function toastMtfPatterns(map){
 }
 // ---------- 每日自动弹窗（早盘竞价/尾盘/期货日报/自选 · 一次弹完整 · 未开市关闭） ----------
 const DAILY_POP_KEY = 'dailyPop_';
+function popOn(k){ return !!(state.settings.popupSets && state.settings.popupSets[k]); }
+function anyDailyPop(){ return popOn('recommend') || popOn('pattern') || popOn('watch'); }
+function anyNewsPop(){ return popOn('important') || popOn('domestic') || popOn('intl'); }
+function labelOf(k){ return {recommend:'每日推荐弹出', pattern:'形态弹出', watch:'自选弹出', important:'重要资讯弹出', domestic:'国内新闻弹出', intl:'国际重大事件弹出'}[k] || k; }
+function setAllPop(on){
+  ['recommend','pattern','watch','important','domestic','intl'].forEach(k => { state.settings.popupSets[k] = on; });
+  localStorage.setItem('popupSets', JSON.stringify(state.settings.popupSets));
+  document.querySelectorAll('#popSetList input[data-pop]').forEach(c => { c.checked = on; });
+  startDailyPopupTimer(); startNewsTimer();
+  toast(on ? '已全部开启弹窗' : '已全部关闭弹窗');
+}
 function startDailyPopupTimer(){
   if(state.recTimer) clearInterval(state.recTimer);
-  if(!state.settings.dailyPopup) return;   // 开关关闭：不启动自动弹窗
+  if(!anyDailyPop()) return;   // 全部关闭：不启动自动弹窗
   state.recTimer = setInterval(checkDailyPopup, 30000);
 }
 // 交易时段判断（A股：工作日 9:25-11:30 / 13:00-15:00）
@@ -1518,7 +1593,7 @@ function marketSession(){
   return 'after';                                    // 收盘后
 }
 async function checkDailyPopup(){
-  if(!state.settings.dailyPopup) return;   // 开关关闭：不自动弹窗
+  if(!anyDailyPop()) return;   // 全部关闭：不自动弹窗
   const sess = marketSession();
   if(sess === 'pre' || sess === 'closed' || sess === 'after') return; // 未开市/收盘后全部默认关闭
   const key = DAILY_POP_KEY + todayStr();
@@ -1527,25 +1602,82 @@ async function checkDailyPopup(){
   if(sess === 'morning_open' && !done.morning){
     done.morning = true;
     try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
-    await openDailyPopup('auction');
+    if(popOn('recommend')) await openDailyPopup('auction');
   } else if(sess === 'tail' && !done.tail){
     done.tail = true;
     try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
-    await openDailyPopup('tail');
+    if(popOn('recommend')) await openDailyPopup('tail');
   } else if(sess === 'middle' && !done.middle && state.added.length){
     // 中间时段只弹自选（不记录"已完成"，允许每次进入页面都弹一次自选，但同一次页面内只弹一次）
     if(state.recPop && state.recPop.middleShown) return;
     state.recPop = state.recPop || {};
     state.recPop.middleShown = true;
-    await openDailyPopup('watch');
+    if(popOn('watch')) await openDailyPopup('watch');
   }
 }
 // 页面首次进入触发一次（init 后）
 async function pageEntryPopup(){
-  if(!state.settings.dailyPopup) return;   // 开关关闭：进入页面不自动弹
+  if(!anyDailyPop()) return;   // 全部关闭：进入页面不自动弹
   const sess = marketSession();
   if(sess === 'pre' || sess === 'closed') return; // 未开市默认关闭
   await checkDailyPopup();
+}
+// ---------- 资讯弹窗（重要资讯 / 国内新闻 / 国际重大事件，按开关过滤） ----------
+const NEWS_POP_KEY = 'newsPop_';
+let newsCache = null;
+function newsTabOn(nt){
+  if(nt === 'important') return popOn('important');
+  if(nt === 'domestic') return popOn('domestic');
+  if(nt === 'intl') return popOn('intl');
+  return false;
+}
+function openNewsPopup(force){
+  if(!anyNewsPop()) return;
+  if($('newsModal').classList.contains('show') && !force) return;
+  // 默认激活第一个开启的资讯分类
+  let def = ['important','domestic','intl'].find(nt => newsTabOn(nt)) || 'important';
+  renderNews(def);
+  $('newsModal').classList.add('show');
+}
+async function renderNews(activeTab){
+  document.querySelectorAll('#newsTabs .nt').forEach(t => t.classList.toggle('on', t.dataset.nt === activeTab));
+  const el = $('newsList'); if(!el) return;
+  el.innerHTML = '<div class="muted">加载中…</div>';
+  if(!newsCache){
+    try { newsCache = await API('/api/news-feed'); } catch(e){ newsCache = { ok:false }; }
+  }
+  const d = newsCache || {};
+  let items = [];
+  if(activeTab === 'important') items = (d.important || []);
+  else if(activeTab === 'domestic') items = (d.domestic || []);
+  else if(activeTab === 'intl') items = (d.intl || []);
+  if(!items.length){
+    if(activeTab === 'intl' && d.intlReach === false){
+      el.innerHTML = '<div class="newsnote">⚠️ 国际快讯数据源当前不可达（沙箱网络限制），生产环境可正常获取。国内/重要资讯不受影响。</div>';
+    } else {
+      el.innerHTML = '<div class="muted">暂无相关内容</div>';
+    }
+  } else {
+    el.innerHTML = items.map(it => `<div class="newsit ${it.cat}"><div class="t">${it.text}</div>${it.time?`<div class="tm">${it.time}</div>`:''}</div>`).join('');
+  }
+  const note = $('newsNote');
+  if(note) note.textContent = d.intlReach === false ? '国际快讯源不可达，已隐藏该分类；其余为实时宏观+政策日历（真实数据）。' : '数据：实时宏观 + 政策会议日历 + 东方财富快讯（若可达）。';
+}
+function startNewsTimer(){
+  if(state.newsTimer) clearInterval(state.newsTimer);
+  if(!anyNewsPop()) return;
+  state.newsTimer = setInterval(async ()=>{
+    if(document.hidden) return;
+    const key = NEWS_POP_KEY + todayStr();
+    let done = {};
+    try { done = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){}
+    if(done.shown) return;          // 每天仅自动弹一次
+    if(!anyNewsPop()) return;
+    done.shown = true;
+    try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
+    newsCache = null;               // 刷新缓存
+    openNewsPopup(true);
+  }, 1800000); // 每 30 分钟检查一次
 }
 async function openDailyPopup(activeTab){
   // 期货价差日报 + 推荐数据一次性拉取
@@ -1822,17 +1954,24 @@ function bindUI(){
   $('planBtn').onclick=openPlan;
   $('dailyBriefBtn').onclick=()=> openDailyPopup('futures');
   // 自动弹窗开关
-  $('dailyPopupChk').checked = !!state.settings.dailyPopup;
-  $('dailyPopupToggle').classList.toggle('on', !!state.settings.dailyPopup);
-  $('dailyPopupChk').onchange = (e)=>{
-    const on = e.target.checked;
-    state.settings.dailyPopup = on;
-    localStorage.setItem('dailyPopupOn', on ? '1' : '0');
-    $('dailyPopupToggle').classList.toggle('on', on);
-    if(on){ startDailyPopupTimer(); pageEntryPopup(); }
-    else if(state.recTimer){ clearInterval(state.recTimer); state.recTimer = null; }
-    toast(on ? '已开启每日自动弹窗' : '已关闭每日自动弹窗');
+  // 弹窗设置面板
+  $('popupSetsBtn').onclick = ()=>{
+    document.querySelectorAll('#popSetList input[data-pop]').forEach(c => { c.checked = popOn(c.dataset.pop); });
+    $('popupSetsModal').classList.add('show');
   };
+  document.querySelectorAll('#popSetList input[data-pop]').forEach(c => {
+    c.onchange = (e)=>{
+      const k = e.target.dataset.pop, on = e.target.checked;
+      state.settings.popupSets[k] = on;
+      localStorage.setItem('popupSets', JSON.stringify(state.settings.popupSets));
+      startDailyPopupTimer(); startNewsTimer();
+      toast(`${labelOf(k)}已${on?'开启':'关闭'}`);
+    };
+  });
+  $('popAllOn').onclick = ()=>{ setAllPop(true); };
+  $('popAllOff').onclick = ()=>{ setAllPop(false); };
+  // 资讯弹窗分类切换
+  document.querySelectorAll('#newsTabs .nt').forEach(t => { t.onclick = ()=> renderNews(t.dataset.nt); });
   $('addAllRecBtn').onclick=addAllPlanRec;
   $('addAllPopupBtn').onclick=addAllPopupRec;
   $('offRecPopupBtn').onclick=offRecPopup;

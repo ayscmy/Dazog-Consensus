@@ -1570,6 +1570,57 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 资讯弹窗数据源：国内/重要资讯来自实时宏观+政策会议日历（真实可得）；
+  // 国际重大事件尽力获取东方财富快讯（生产环境可达，沙箱不可达时如实标记不可达，绝不杜撰）
+  if (url.pathname === '/api/news-feed') {
+    try {
+      const host = req.headers.host || ('localhost:' + PORT);
+      const macro = await fetch(`http://${host}/api/macro`).then(r => r.json().catch(() => null)).catch(() => null);
+      const domestic = [], important = [], intl = [];
+      if (macro) {
+        const daily = macro.daily || {};
+        (daily.points || []).forEach(p => domestic.push({ cat: 'domestic', text: p, time: '' }));
+        if (daily.text) important.push({ cat: 'important', text: daily.text, time: '' });
+        const weekly = macro.weekly || {};
+        if (weekly.text) domestic.push({ cat: 'domestic', text: '【每周宏观】' + weekly.text, time: '' });
+        const guide = Array.isArray(macro.guide) ? macro.guide : [];
+        guide.forEach(g => {
+          if (g && g.date && g.title) important.push({ cat: 'important', text: `【${g.date}】${g.title}${g.note ? ('：' + g.note) : ''}`, time: g.date });
+        });
+      }
+      let intlReach = true;
+      try {
+        const r = await fetch('https://newsapi.eastmoney.com/kuaixun/v1/getlist?type=0&pagesize=30&pageindex=1', {
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://kuaixun.eastmoney.com/' },
+          signal: AbortSignal.timeout(8000)
+        });
+        const txt = await r.text();
+        let j = null;
+        try { j = JSON.parse(txt); } catch (_) {
+          const m = txt.match(/=\s*(\{[\s\S]*\})\s*;?\s*$/);
+          if (m) { try { j = JSON.parse(m[1]); } catch (__){} }
+        }
+        const list = (j && j.data && j.data.list) || [];
+        const kw = ['美股','美联储','欧洲','日本','英国','德国','法国','特朗普','拜登','中东','俄乌','俄罗斯','乌克兰','非农','关税','制裁','全球','IMF','欧央行','日央','韩国','印度','道指','纳指','标普'];
+        const seen = new Set();
+        list.forEach(it => {
+          const title = (it.title || '').replace(/<[^>]+>/g, '');
+          const body = (it.content || it.digest || '').replace(/<[^>]+>/g, '');
+          const text = (title + (body ? (' — ' + body) : '')).trim();
+          if (!text || seen.has(text)) return;
+          if (kw.some(k => text.includes(k))) { intl.push({ cat: 'intl', text, time: it.showtime || it.time || '' }); seen.add(text); }
+        });
+        intl = intl.slice(0, 12);
+      } catch (e) { intlReach = false; }
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: true, domestic, important, intl, intlReach, ts: Date.now() }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: false, error: String(e) }));
+    }
+    return;
+  }
+
   // 现货记录系统：读取/写入 spot_history.json，自动抓伦敦金银，自动对比
   if (url.pathname === '/api/spot') {
     const SPOT_FILE = path.join(__dirname, 'spot_history.json');
