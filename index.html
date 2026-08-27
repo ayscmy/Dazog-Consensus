@@ -195,6 +195,13 @@
   .toast .tx{flex:1;font-size:13px}
   .toast .tx b{font-size:13px}
   .toast .addbtn{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:7px;padding:5px 10px;font-size:12px}
+  .kmtfbar{display:flex;gap:6px;margin:4px 0 8px}
+  .kmtf{padding:4px 12px;border:1px solid var(--border);background:var(--panel2);border-radius:7px;cursor:pointer;font-size:12px;color:var(--muted)}
+  .kmtf.on{border-color:var(--accent);color:var(--text);background:var(--panel)}
+  .kmwrap{margin:6px 0}
+  .kmwrap canvas{width:100%;display:block;background:var(--panel2);border-radius:8px}
+  #cvKline{height:240px}
+  #cvMacd{height:120px}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:120;display:none;align-items:flex-start;justify-content:center;padding:40px 12px;overflow:auto}
   .modal.show{display:flex}
   .modal .box{background:var(--panel);border-radius:12px;max-width:760px;width:100%;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.35);max-height:86vh;overflow:auto;margin:auto}
@@ -656,6 +663,7 @@
   </div>
 </div>
 
+<script src="popup-plan.js"></script>
 <script>
 "use strict";
 const API = p => fetch(p).then(r=>r.json());
@@ -1191,6 +1199,16 @@ function renderDetail(code, a, rel){
   html += `<div class="card"><h3>⏱ 时间周期 <span class="tag">1分钟 → 月线 · 常用周期全部排列 · 数据自动刷新</span></h3>
     <div class="tfgrid" id="tfgrid"></div></div>`;
   html += AI;
+  // ②-0.5 K线 + MACD（红涨绿跌蜡烛 + MACD(12,26,9)，可切周期，随行情流动）
+  html += `<div class="card"><h3>📈 K线 + MACD <span class="tag">蜡烛图（红涨绿跌）· MACD(12,26,9) · 随行情流动</span></h3>
+    <div class="kmtfbar" id="kmTfBar">
+      <button class="kmtf on" data-km="1h">1小时</button>
+      <button class="kmtf" data-km="4h">4小时</button>
+      <button class="kmtf" data-km="day">日线</button>
+    </div>
+    <div class="kmwrap"><canvas id="cvKline" height="240"></canvas></div>
+    <div class="kmwrap"><canvas id="cvMacd" height="120"></canvas></div>
+  </div>`+AI;
   // ②-1 当日分时（P0-2）
   html += `<div class="card"><h3>🕐 当日分时 <span class="tag">价格线 + 均价线（自动刷新）</span></h3>
     <div class="minwrap"><canvas id="cvMin" height="200"></canvas></div>
@@ -1284,6 +1302,16 @@ function renderDetail(code, a, rel){
     <div class="relgrid" id="relgrid"><span class="muted">加载中…</span></div></div>`+AI;
   $('detail').innerHTML = html;
 
+  // K线 + MACD 初始化（周期切换 + 首次绘制）
+  state.kmTf = '1h'; state.kmLast = 0;
+  document.querySelectorAll('#kmTfBar .kmtf').forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll('#kmTfBar .kmtf').forEach(x => x.classList.toggle('on', x === b));
+      state.kmTf = b.dataset.km; state.kmLast = 0; drawKlineMacd(code, state.kmTf);
+    };
+  });
+  requestAnimationFrame(() => drawKlineMacd(code, state.kmTf));
+
   // 绘制 9 个时间周期图
   const frames = state.alltfCache[code]||{};
   const grid = $('tfgrid');
@@ -1359,6 +1387,7 @@ function refreshDetailLive(){
   if(a){ $('dPrice').textContent=fmt(qt.price, qt.price>1000?0:2); $('dPrice').className='price '+(qt.pct>0?'up':qt.pct<0?'down':''); }
   drawAllTF(code);
   if($('cvMin')) loadMinute(code); // 分时随刷新更新
+  if($('cvKline') && Date.now() - (state.kmLast || 0) > 20000){ state.kmLast = Date.now(); drawKlineMacd(code, state.kmTf || '1h'); } // K线+MACD 节流刷新（流动）
 }
 // ---------- 当日分时图 ----------
 let minTimer=null;
@@ -1565,28 +1594,13 @@ const DAILY_POP_KEY = 'dailyPop_';
 function popOn(k){ return !!(state.settings.popupSets && state.settings.popupSets[k]); }
 function anyDailyPop(){ return popOn('recommend') || popOn('pattern') || popOn('watch'); }
 function anyNewsPop(){ return popOn('important') || popOn('domestic') || popOn('intl'); }
-// 未选择任何弹窗时，上午竞价/尾盘首次打开默认弹出对应推荐（避免“全关后什么都不弹”）
-function defaultRecSlot(sess){
-  if(sess !== 'morning_open' && sess !== 'tail') return null;
-  const offKey = DAILY_POP_KEY + todayStr();
-  let off = {};
-  try { off = JSON.parse(localStorage.getItem(offKey) || '{}'); } catch(e){}
-  const slot = sess === 'morning_open' ? 'morning' : 'tail';
-  if(off[slot]) return null;                 // 用户当日已关闭该时段推荐
-  const key = 'defaultRec_' + todayStr();
-  let done = {};
-  try { done = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){}
-  if(done[slot]) return null;                // 当日该时段默认推荐已弹过
-  done[slot] = true;
-  try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
-  return slot;
-}
+// 每日自动弹窗完全由「⚙ 弹窗设置」的开关决定：选了什么才弹什么，全关=真静默。
+// 时段规则（早竞/尾盘/中间/未开市）统一由 popupPlan()（popup-plan.js，已单测）计算。
 function labelOf(k){ return {recommend:'每日推荐弹出', pattern:'形态弹出', watch:'自选弹出', important:'重要资讯弹出', domestic:'国内新闻弹出', intl:'国际重大事件弹出'}[k] || k; }
 function setAllPop(on){
   ['recommend','pattern','watch','important','domestic','intl'].forEach(k => { state.settings.popupSets[k] = on; });
   localStorage.setItem('popupSets', JSON.stringify(state.settings.popupSets));
   document.querySelectorAll('#popSetList input[data-pop]').forEach(c => { c.checked = on; });
-  if(on) localStorage.removeItem('popupAllOff'); else localStorage.setItem('popupAllOff','1'); // 全部关闭=真正静默
   startDailyPopupTimer(); startNewsTimer();
   toast(on ? '已全部开启弹窗' : '已全部关闭弹窗（真正静默）');
 }
@@ -1609,39 +1623,24 @@ function marketSession(){
 }
 async function checkDailyPopup(){
   const sess = marketSession();
-  if(sess === 'pre' || sess === 'closed' || sess === 'after') return; // 未开市/收盘后全部默认关闭
-  // 全部关闭（用户显式关闭所有弹窗）：真正静默，开关生效
-  if(localStorage.getItem('popupAllOff') === '1') return;
-  // 未选择任何弹窗类型：首次进入（每时段一次）默认弹出股票简报（含上午竞价/尾盘推荐）
-  if(!anyDailyPop()){
-    const slot = defaultRecSlot(sess);
-    if(slot) await openDailyPopup('stock');
-    return;
-  }
   const key = DAILY_POP_KEY + todayStr();
   let done = {};
   try { done = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){}
-  if(sess === 'morning_open' && !done.morning){
-    done.morning = true;
-    try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
-    if(popOn('recommend')) await openDailyPopup('stock');
-  } else if(sess === 'tail' && !done.tail){
-    done.tail = true;
-    try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
-    if(popOn('recommend')) await openDailyPopup('stock');
-  } else if(sess === 'middle' && !done.middle && state.added.length){
-    // 中间时段只弹自选（不记录"已完成"，允许每次进入页面都弹一次自选，但同一次页面内只弹一次）
-    if(state.recPop && state.recPop.middleShown) return;
-    state.recPop = state.recPop || {};
-    state.recPop.middleShown = true;
-    if(popOn('watch')) await openDailyPopup('watch');
+  const plan = (window.PopupPlan
+    ? PopupPlan.popupPlan(sess, state.settings.popupSets, { done, addedLen: state.added.length })
+    : { pop:false, tabs:[] });
+  if(!plan.pop) return;                       // 全关 / 未开市 / 该时段已弹过 → 静默
+  // 标记已弹时段，避免重复弹出
+  if(plan.tabs.includes('stock')){
+    if(sess === 'morning_open') done.morning = true;
+    if(sess === 'tail') done.tail = true;
   }
+  if(plan.tabs.includes('watch')) done.middle = true;
+  try { localStorage.setItem(key, JSON.stringify(done)); } catch(e){}
+  await openDailyPopup(plan.tabs[0]);
 }
-// 页面首次进入触发一次（init 后）
+// 页面首次进入触发一次（init 后）：时段规则由 popupPlan 统一处理
 async function pageEntryPopup(){
-  const sess = marketSession();
-  if(sess === 'pre' || sess === 'closed') return; // 未开市默认关闭
-  // 未选择任何弹窗：本次进入按“默认”弹出上午/尾盘推荐（无默认则保持静默）
   await checkDailyPopup();
 }
 // ---------- 资讯弹窗（重要资讯 / 国内新闻 / 国际重大事件，按开关过滤） ----------
@@ -2022,8 +2021,6 @@ function bindUI(){
       const k = e.target.dataset.pop, on = e.target.checked;
       state.settings.popupSets[k] = on;
       localStorage.setItem('popupSets', JSON.stringify(state.settings.popupSets));
-      const allOff = ['recommend','pattern','watch','important','domestic','intl'].every(x => !state.settings.popupSets[x]);
-      if(allOff) localStorage.setItem('popupAllOff','1'); else localStorage.removeItem('popupAllOff'); // 全部关闭=真正静默
       startDailyPopupTimer(); startNewsTimer();
       toast(`${labelOf(k)}已${on?'开启':'关闭'}`);
     };
@@ -2454,6 +2451,66 @@ function drawCandles(canvas, bars, opts){
     ctx.fillStyle='rgba(43,125,233,.15)'; ctx.fillRect(padL+plotW*0.6, my, plotW*0.4, mh);
     ctx.strokeStyle='rgba(43,125,233,.6)'; ctx.strokeRect(padL+plotW*0.6, my, plotW*0.4, mh);
   }
+}
+
+// ---------- K线 + MACD（详情页专用面板） ----------
+async function drawKlineMacd(code, tf){
+  const cvK = $('cvKline'), cvM = $('cvMacd');
+  if(!cvK || !cvM) return;
+  let d; try { d = await API('/api/kline?code='+code+'&tf='+tf); } catch(e){ d = { bars:[] }; }
+  let bars = (d && d.bars) || [];
+  if(!bars.length){ const k = cvK.getContext('2d'); k.clearRect(0,0,cvK.width,cvK.height); return; }
+  const live = (state.quotes[code] && state.quotes[code].price) || null;
+  if(live != null) bars = mergeLive(bars, live);   // 末根并入实时价 → 随行情流动
+  const dec = (live != null ? live : bars[bars.length-1].c) > 1000 ? 0 : 2;
+  drawCandles(cvK, bars, { dec, livePrice: live, mini:false });
+  drawMacd(cvM, bars, dec);
+}
+function macdSeries(bars){
+  const closes = bars.map(b => b.c);
+  const ema = (arr, n) => {
+    const k = 2/(n+1); const out = []; let prev = arr[0];
+    for(let i=0;i<arr.length;i++){ prev = i === 0 ? arr[0] : arr[i]*k + prev*(1-k); out.push(prev); }
+    return out;
+  };
+  const e12 = ema(closes, 12), e26 = ema(closes, 26);
+  const dif = e12.map((v,i) => v - e26[i]);
+  const dea = ema(dif, 9);
+  const hist = dif.map((v,i) => 2*(v - dea[i]));
+  return { dif, dea, hist };
+}
+function drawMacd(canvas, bars, dec){
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth || 600, H = canvas.clientHeight || 120;
+  canvas.width = W*dpr; canvas.height = H*dpr; const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+  const padR = 46, padL = 4, padT = 6, padB = 12, plotW = W-padR-padL, plotH = H-padT-padB;
+  const { dif, dea, hist } = macdSeries(bars);
+  let m = 0;
+  for(const v of hist) m = Math.max(m, Math.abs(v));
+  for(const v of dif) m = Math.max(m, Math.abs(v));
+  for(const v of dea) m = Math.max(m, Math.abs(v));
+  const R = m || 1; const y0 = padT + plotH/2;
+  const yOf = v => y0 - (v/R)*(plotH/2);
+  const xOf = i => padL + plotW*(i+0.5)/bars.length;
+  // 零轴
+  ctx.strokeStyle = 'rgba(130,130,130,.25)'; ctx.beginPath(); ctx.moveTo(padL,y0); ctx.lineTo(padL+plotW,y0); ctx.stroke();
+  // 柱状图（红涨绿跌）
+  const cw = Math.max(1.2, plotW/bars.length*0.5);
+  for(let i=0;i<bars.length;i++){
+    const x = xOf(i), h = hist[i], isUp = h >= 0;
+    ctx.fillStyle = isUp ? '#e0392b' : '#15a05a';
+    const yTop = isUp ? yOf(h) : y0, yBot = isUp ? y0 : yOf(h);
+    ctx.fillRect(x - cw/2, Math.min(yTop,yBot), cw, Math.max(1, Math.abs(yOf(h)-y0)));
+  }
+  // DIF / DEA 线
+  const line = (arr, col) => { ctx.beginPath(); for(let i=0;i<arr.length;i++){ const x=xOf(i), y=yOf(arr[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.strokeStyle = col; ctx.lineWidth = 1.3; ctx.stroke(); };
+  line(dif, '#e8a13a'); line(dea, '#2b7de9');
+  // 标签
+  ctx.fillStyle = '#8a8a8a'; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('MACD (12,26,9)', padL+2, padT+9);
+  ctx.fillText('+'+R.toFixed(2), padL+plotW+3, padT+3);
+  ctx.fillText('-'+R.toFixed(2), padL+plotW+3, H-3);
 }
 
 init();
