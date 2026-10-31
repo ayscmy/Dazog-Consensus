@@ -9,7 +9,7 @@
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.5-brightgreen.svg)](https://nodejs.org)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-success.svg)](package.json)
 
-**仓库**：[Gitee（主）](https://gitee.com/mserm/mserm-crm) · [GitHub（镜像）](https://github.com/mserm/mserm-crm)
+**仓库**：[Gitee（主）](https://gitee.com/Emcloud_admin/mserm-crm) · [GitHub（镜像）](https://github.com/mserm/mserm-crm)
 
 ---
 
@@ -45,7 +45,7 @@
 
 ```bash
 # 国内推荐 Gitee
-git clone https://gitee.com/mserm/mserm-crm.git
+git clone https://gitee.com/Emcloud_admin/mserm-crm.git
 # 或 GitHub
 # git clone https://github.com/mserm/mserm-crm.git
 

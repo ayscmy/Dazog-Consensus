@@ -5,7 +5,7 @@
 ## 一、开发环境
 
 ```bash
-git clone https://gitee.com/mserm/mserm-crm.git    # 或 https://github.com/mserm/mserm-crm.git
+git clone https://gitee.com/Emcloud_admin/mserm-crm.git    # 或 https://github.com/mserm/mserm-crm.git
 cd mserm-crm
 npm start          # 主系统 http://localhost:8081
 npm run site       # 官网     http://localhost:8099

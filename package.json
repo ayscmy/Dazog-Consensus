@@ -17,7 +17,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://gitee.com/mserm/mserm-crm.git"
+    "url": "https://gitee.com/Emcloud_admin/mserm-crm.git"
   },
   "scripts": {
     "start": "node --no-warnings server.js",
@@ -26,8 +26,8 @@
     "site:dev": "node --no-warnings --watch site/server.js",
     "backup": "node --no-warnings src/backup.js"
   },
-  "homepage": "https://gitee.com/mserm/mserm-crm#readme",
+  "homepage": "https://gitee.com/Emcloud_admin/mserm-crm#readme",
   "bugs": {
-    "url": "https://gitee.com/mserm/mserm-crm/issues"
+    "url": "https://gitee.com/Emcloud_admin/mserm-crm/issues"
   }
 }

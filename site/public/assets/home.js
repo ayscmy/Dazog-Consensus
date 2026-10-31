@@ -52,7 +52,7 @@ async function init() {
     metaBox.innerHTML = '';
     notes.innerHTML = '<div class="dl-empty">管理员还没有发布安装包。可以先 clone 源码，用安装向导创建一个空库。</div>';
     btn.textContent = '查看源码';
-    btn.href = meta.repo || 'https://gitee.com/mserm/mserm-crm';
+    btn.href = meta.repo || 'https://gitee.com/Emcloud_admin/mserm-crm';
     return;
   }
 

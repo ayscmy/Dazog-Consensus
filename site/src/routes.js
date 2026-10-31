@@ -24,7 +24,7 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({
 
 export const SITE_NAME = process.env.SITE_NAME || 'MSERM';
 export const SITE_TAGLINE = process.env.SITE_TAGLINE || '从线索到回款的集团 CRM';
-export const APP_REPO = process.env.SITE_REPO || 'https://gitee.com/mserm/mserm-crm';
+export const APP_REPO = process.env.SITE_REPO || 'https://gitee.com/Emcloud_admin/mserm-crm';
 export const SITE_URL = process.env.SITE_URL || `http://localhost:${process.env.PORT || 8099}`;
 
 /* ==================== 站点信息 ==================== */
