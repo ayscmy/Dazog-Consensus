@@ -101,19 +101,23 @@ npm start
 
 截图全部取自仓库配套的演示库（官网会员免费下载），不是设计稿。
 
-| 工作台：本月漏斗、待办、业绩排名 | 审批中心：谁的单、卡在哪一关 |
+**工作台**：本月漏斗、加权预测、待跟进线索、我的待办、业绩排名
+
+![工作台](docs/screenshots/02-dashboard.png)
+
+| 审批中心：谁的单、卡在哪一关 | 合同：报价通过后一键建单 |
 |---|---|
-| ![工作台](docs/screenshots/02-dashboard.png) | ![审批中心](docs/screenshots/05-approvals.png) |
+| ![审批中心](docs/screenshots/05-approvals.png) | ![合同列表](docs/screenshots/06-contracts.png) |
 
-| 报价：明细、折扣、成本毛利、客户版链接 | 合同：报价通过后一键建单，类型可选 |
-|---|---|
-| ![报价详情](docs/screenshots/04-quotation-detail.png) | ![合同列表](docs/screenshots/06-contracts.png) |
+**报价**：明细、折扣、成本毛利、客户版链接、发送记录
 
-| 订单合同：发票式版式，含税率税额与价税合计大写 |
-|---|
-| ![订单合同单据](docs/screenshots/07-contract-doc.png) |
+![报价详情](docs/screenshots/04-quotation-detail.png)
 
-| 用户与组织：四级组织树、分级管理 | 登录页：演示账号可按库类型切换 |
+**订单合同**：中国发票版式，购买方/销售方、明细含税率税额、价税合计大写
+
+![订单合同单据](docs/screenshots/07-contract-doc.png)
+
+| 用户与组织：四级组织树、分级管理 | 登录页：演示账号按库类型切换 |
 |---|---|
 | ![用户与组织](docs/screenshots/08-admin.png) | ![登录页](docs/screenshots/01-login.png) |
 
