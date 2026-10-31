@@ -5,7 +5,7 @@
 ## 一、开发环境
 
 ```bash
-git clone https://gitee.com/mserm/mserm-crm.git
+git clone https://gitee.com/mserm/mserm-crm.git    # 或 https://github.com/mserm/mserm-crm.git
 cd mserm-crm
 npm start          # 主系统 http://localhost:8081
 npm run site       # 官网     http://localhost:8099
@@ -26,6 +26,8 @@ npm run site       # 官网     http://localhost:8099
 4. 服务端日志（`Ctrl+C` 前的最后 20 行）或浏览器控制台报错
 
 **不要**在 Issue 里粘贴真实客户数据、密码、`data/crm.db` 文件。
+
+项目同时托管在 Gitee（主）与 GitHub（镜像），Issue / PR 提在 Gitee 响应更快；GitHub 上提的也会看。
 
 ## 三、提 PR
 

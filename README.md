@@ -9,6 +9,8 @@
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.5-brightgreen.svg)](https://nodejs.org)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-success.svg)](package.json)
 
+**仓库**：[Gitee（主）](https://gitee.com/mserm/mserm-crm) · [GitHub（镜像）](https://github.com/mserm/mserm-crm)
+
 ---
 
 ## ⚠️ 先看这里：仓库里没有数据库
@@ -42,7 +44,11 @@
 前置条件：**Node.js ≥ 22.5**（需要内置的 `node:sqlite`）。不需要 Docker、MySQL、Redis，也**不需要 `npm install`**。
 
 ```bash
+# 国内推荐 Gitee
 git clone https://gitee.com/mserm/mserm-crm.git
+# 或 GitHub
+# git clone https://github.com/mserm/mserm-crm.git
+
 cd mserm-crm
 cp .env.example .env       # 可选，改端口/数据库路径
 npm start

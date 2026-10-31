@@ -3,6 +3,18 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：`主版本.次版本.修订号`。
 数据库结构变更一律通过 `src/db.js` 的 `migrate()` 增量执行，升级前请先备份 `data/crm.db`。
 
+## 2.6.1
+
+**双平台托管：Gitee 主仓库 + GitHub 镜像**
+
+- 新增 `scripts/publish.sh`：一条命令建仓并推送到 Gitee 与 GitHub，可只推单边（`gitee` / `github`）
+  - 令牌经临时 `GIT_ASKPASS` 传入，不写入 `.git/config`，不出现在 URL
+  - 推送前拦截 `.db` / `release/` / `private/` / `.env` 被误提交
+- `scripts/set-repo.sh` 支持一次替换两个平台的占位仓库地址（`<Gitee空间> [仓库名] [GitHub空间]`）
+- 新增 `.github/` 模板（Bug / 功能建议 / PR），与 `.gitee/` 并存
+- README 增加双仓库入口与克隆说明；官网页脚增加 GitHub 镜像链接
+- 移除 `scripts/publish-gitee.sh`，由 `scripts/publish.sh` 统一承担
+
 ## 2.6.0
 
 **开源发布 + 官网会员体系**
