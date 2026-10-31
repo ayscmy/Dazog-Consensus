@@ -507,3 +507,48 @@ nav.sb-nav { flex: 1; overflow-y: auto; padding-top: 2px; }
   margin-left: -2px;
 }
 .demo-home:hover { color: var(--ink); text-decoration: underline; }
+
+/* =========================================================
+   线索 API 接入（用户与组织 → API 接入）
+   ========================================================= */
+.api-heads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.api-head-card {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px 12px; background: var(--bg-sub);
+}
+.api-head-card .t { font-size: 12px; font-weight: 600; color: var(--accent-ink); }
+.api-head-card .m { margin-top: 4px; font-size: 11.5px; line-height: 1.7; color: var(--ink-2); }
+.api-head-card code, .hint code, .muted code {
+  font-family: var(--mono); font-size: 11px; padding: 1px 4px;
+  border-radius: 3px; background: var(--bg-sunken); color: var(--ink-2);
+}
+.code-block {
+  margin: 0; padding: 12px 14px; border-radius: 8px;
+  background: #1c1f26; color: #e8ebf2;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.75;
+  white-space: pre-wrap; word-break: break-all; overflow: auto;
+}
+.code-block.err-text { color: #ffb4ae; }
+.api-key {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 11px; border: 1px dashed var(--line);
+  border-radius: 7px; background: var(--bg-sub);
+}
+.api-key code { flex: 1; font-family: var(--mono); font-size: 12.5px; word-break: break-all; color: var(--ink); }
+.api-scopes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.api-scope {
+  display: flex; align-items: flex-start; gap: 8px; cursor: pointer;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px;
+}
+.api-scope:hover { background: var(--hover); }
+.api-scope input { margin-top: 2px; }
+.api-scope b { display: block; font-size: 12.5px; font-weight: 500; }
+.api-scope em { font-style: normal; font-size: 11px; color: var(--ink-3); }
+.api-status { font-family: var(--mono); }
+.api-status.ok { color: var(--green); }
+.api-status.err { color: var(--red); }
+#logTable tbody tr { cursor: pointer; }
+@media (max-width: 1100px) {
+  .api-heads { grid-template-columns: 1fr; }
+  .api-scopes { grid-template-columns: 1fr; }
+}

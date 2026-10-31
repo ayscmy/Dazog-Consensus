@@ -129,7 +129,8 @@ const server = createServer(async (req, res) => {
     if (req.url.startsWith('/api/')) {
       const out = await dispatch(req, res, { ip });
       if (!res.writableEnded && !res.headersSent) {
-        res.writeHead(200, {
+        // 路由里可以用 ctx.res.statusCode 指定 201 / 204 之类的状态码
+        res.writeHead(res.statusCode || 200, {
           'Content-Type': 'application/json; charset=utf-8',
           'Cache-Control': 'no-store',
         });

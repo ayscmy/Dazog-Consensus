@@ -13,3 +13,6 @@ import './approvals.js';
 import './reports.js';
 import './attachments.js';
 import './admin.js';
+// 对外线索 API（v1）与它的开通授权
+import './leads-api.js';
+import './api-admin.js';

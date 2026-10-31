@@ -35,6 +35,8 @@ const P = {
   trash: '<path d="M2.6 4.2h10.8"/><path d="M5.4 4.2V2.6h5.2v1.6"/><path d="M4 4.2l.7 9.2h6.6l.7-9.2"/>',
   download: '<path d="M8 2.4v8.2"/><path d="M4.6 7.2 8 10.6l3.4-3.4"/><path d="M2.6 12.4v1.2h10.8v-1.2"/>',
   file: '<path d="M3.6 1.8h5.2l3.6 3.6v8.8H3.6z"/><path d="M8.8 1.8v3.6h3.6"/>',
+  terminal: '<rect x="1.6" y="2.6" width="12.8" height="10.8" rx="1.6"/><path d="M4.4 6.2 6.6 8l-2.2 1.8"/><path d="M8.4 10h3.2"/>',
+  key: '<circle cx="5.2" cy="8" r="2.8"/><path d="M8 8h6"/><path d="M11.6 8v2.2M13.8 8v1.6"/>',
 };
 
 export function icon(name, size = 15, cls = '') {

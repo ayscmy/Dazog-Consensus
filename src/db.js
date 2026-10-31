@@ -459,6 +459,50 @@ CREATE TABLE IF NOT EXISTS quote_sends (
   created_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_qsend_quote ON quote_sends(quotation_id);
+
+-- 外部系统接入：线索 API 客户端
+-- 只存密钥哈希，明文密钥仅在「开通 / 重置」时返回一次
+CREATE TABLE IF NOT EXISTS api_clients (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  name         TEXT NOT NULL,                 -- 接入方名称，如「官网表单」「企业微信」
+  client_id    TEXT NOT NULL UNIQUE,          -- 公开标识 ak_xxxx，日志里用来认人
+  key_prefix   TEXT NOT NULL,                 -- crm_ab12cd，列表里给人看的前缀
+  key_hash     TEXT NOT NULL,                 -- sha256(完整密钥)
+  status       TEXT NOT NULL DEFAULT 'active',-- active | disabled
+  scopes       TEXT NOT NULL DEFAULT '["lead:read","lead:write"]',
+  ip_whitelist TEXT NOT NULL DEFAULT '',      -- 逗号/换行分隔，支持 1.2.3.4 / 10.0.0.0/8 / 192.168.*.*
+  rate_limit   INTEGER NOT NULL DEFAULT 60,   -- 每分钟请求上限，0 = 不限
+  daily_quota  INTEGER NOT NULL DEFAULT 5000, -- 每日调用上限，0 = 不限
+  expire_at    TEXT,                          -- 授权到期日 YYYY-MM-DD
+  org_id       INTEGER REFERENCES org_units(id),
+  owner_id     INTEGER REFERENCES users(id),  -- 新线索的默认负责人
+  remark       TEXT,
+  created_by   INTEGER,
+  created_at   TEXT NOT NULL,
+  last_used_at TEXT,
+  last_ip      TEXT,
+  revoked_at   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_apic_status ON api_clients(status);
+
+-- 外部调用留痕：调试面板与审计共用，也是日配额的计数依据
+CREATE TABLE IF NOT EXISTS api_logs (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id   INTEGER,                        -- api_clients.id
+  client_name TEXT,
+  method      TEXT NOT NULL,
+  path        TEXT NOT NULL,
+  ip          TEXT,
+  status      INTEGER NOT NULL DEFAULT 0,
+  ms          INTEGER NOT NULL DEFAULT 0,
+  request     TEXT,
+  response    TEXT,
+  error       TEXT,
+  ua          TEXT,
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_apilog_client ON api_logs(client_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_apilog_time ON api_logs(created_at);
 `;
 
 /** 给已有库补列（SQLite 的 ADD COLUMN 很轻，重复执行安全） */
@@ -501,6 +545,10 @@ export function migrate() {
   addColumn('quotations', 'public_token', 'TEXT');
   addColumn('quotations', 'last_sent_at', 'TEXT');
   addColumn('quotations', 'send_count', 'INTEGER NOT NULL DEFAULT 0');
+
+  // 2.8：外部系统通过 API 写入线索时的外部单号，用于幂等去重
+  addColumn('leads', 'external_id', 'TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS uq_lead_external ON leads(external_id) WHERE external_id IS NOT NULL');
 
   seedTemplates();
 }

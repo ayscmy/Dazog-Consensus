@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { getSession, loadUser, COOKIE, touchSession } from './auth.js';
 import { run as dbRun } from './db.js';
+import { authenticateApi, noteApiLog } from './api-auth.js';
 
 export class HttpError extends Error {
   constructor(status, message, detail) {
@@ -80,9 +81,24 @@ export function json(res, data, status = 200) {
 }
 
 export async function dispatch(req, res, ctxBase) {
+  const started = Date.now();
   const url = new URL(req.url, 'http://localhost');
   const pathSegs = url.pathname.split('/').filter(Boolean);
   const query = Object.fromEntries(url.searchParams.entries());
+  const isPublicApi = url.pathname.startsWith('/api/v1/');
+
+  // 对外开放的线索 API：允许跨域调用（不带 Cookie，鉴权只认密钥），并放行预检
+  if (isPublicApi) {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type,X-API-Key');
+    res.setHeader('Access-Control-Max-Age', '600');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204).end();
+      return undefined;
+    }
+  }
 
   let matched = null;
   let allowedMethods = [];
@@ -100,9 +116,12 @@ export async function dispatch(req, res, ctxBase) {
   }
 
   const { r, params } = matched;
-  const ctx = { ...ctxBase, req, res, params, query, url, user: null, body: {} };
+  const ctx = { ...ctxBase, req, res, params, query, url, user: null, body: {}, startedAt: started };
 
-  if (r.opts.auth !== false) {
+  if (r.opts.auth === 'api') {
+    // 对外接口：只认 API 密钥，不看登录态
+    ctx.client = authenticateApi({ req, ip: ctxBase.ip });
+  } else if (r.opts.auth !== false) {
     const cookies = parseCookies(req.headers.cookie);
     const token = cookies[COOKIE];
     const session = getSession(token);
@@ -128,7 +147,19 @@ export async function dispatch(req, res, ctxBase) {
     }
   }
 
-  const result = await r.handler(ctx);
+  if (ctx.client) {
+    res.setHeader('X-Api-Client', ctx.client.client_id);
+    res.setHeader('Cache-Control', 'no-store');
+  }
+
+  let result;
+  try {
+    result = await r.handler(ctx);
+  } catch (err) {
+    if (ctx.client) noteApiLog(ctx, null, err);
+    throw err;
+  }
+  if (ctx.client) noteApiLog(ctx, result, null);
 
   if (req.method !== 'GET' && ctx.user && !r.opts.noAudit) {
     const safe = { ...(ctx.body || {}) };

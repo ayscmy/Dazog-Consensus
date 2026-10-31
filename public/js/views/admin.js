@@ -9,7 +9,8 @@ const TABS = [
   { key: 'users', label: '用户与角色' },
   { key: 'orgs', label: '组织架构' },
   { key: 'targets', label: '销售目标' },
-  { key: 'audit', label: '审计日志' },
+  { key: 'api', label: 'API 接入', role: ['admin'] },
+  { key: 'audit', label: '审计日志', role: ['admin', 'gm'] },
 ];
 
 const LEVEL_TEXT = { 1: '1 级 · 集团', 2: '2 级 · 公司', 3: '3 级 · 部门', 4: '4 级 · 团队' };
@@ -21,8 +22,9 @@ const ROLE_LABEL = {
 
 export async function render(el, route, ctx) {
   const tab = route.query.tab || 'users';
-  const canWrite = ['admin', 'gm', 'director', 'manager'].includes(state.user.role);
-  const tabs = TABS.filter((t) => t.key !== 'audit' || ['admin', 'gm'].includes(state.user.role));
+  const role = state.user.role;
+  const canWrite = ['admin', 'gm', 'director', 'manager'].includes(role);
+  const tabs = TABS.filter((t) => !t.role || t.role.includes(role));
   el.innerHTML = `<div class="page">
     <div class="page-head">
       <div>
@@ -31,7 +33,9 @@ export async function render(el, route, ctx) {
       </div>
       <div class="actions">
         ${tab === 'users' && canWrite ? `<button class="btn btn-primary" data-new-user>${icon('plus', 12)} 新增用户</button>` : ''}
-        ${tab === 'orgs' && ['admin', 'gm'].includes(state.user.role) ? `<button class="btn btn-primary" data-new-org>${icon('plus', 12)} 新增组织</button>` : ''}
+        ${tab === 'orgs' && ['admin', 'gm'].includes(role) ? `<button class="btn btn-primary" data-new-org>${icon('plus', 12)} 新增组织</button>` : ''}
+        ${tab === 'api' && role === 'admin' ? `<button class="btn" data-api-debug>${icon('terminal', 12)} 接口调试</button>
+          <button class="btn btn-primary" data-new-client>${icon('plus', 12)} 开通 API 接入</button>` : ''}
       </div>
     </div>
     <div class="toolbar" style="margin-bottom:14px">
@@ -54,6 +58,7 @@ export async function render(el, route, ctx) {
   if (tab === 'users') return renderUsers(panel, ctx);
   if (tab === 'orgs') return renderOrgs(panel, ctx);
   if (tab === 'targets') return renderTargets(panel, ctx);
+  if (tab === 'api') return renderApi(panel, ctx, el);
   return renderAudit(panel);
 }
 
@@ -426,6 +431,510 @@ async function renderTargets(panel, ctx) {
         },
       });
     };
+  });
+}
+
+/* ========================= API 接入 ========================= */
+
+const SCOPE_LABEL = { 'lead:read': '读取', 'lead:write': '写入' };
+const METHOD_TONE = { GET: 'blue', POST: 'green', PATCH: 'amber', DELETE: 'red' };
+
+function clientStatus(c) {
+  if (c.status === 'revoked') return badge('已撤销', 'red');
+  if (c.status === 'disabled') return badge('已停用', 'gray');
+  if (c.expire_at && c.expire_at < new Date().toISOString().slice(0, 10)) return badge('已过期', 'amber');
+  return badge('启用中', 'green');
+}
+
+function copyText(text, msg = '已复制到剪贴板') {
+  const done = () => toast(msg, 'ok');
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch { toast('复制失败，请手动选中', 'err'); }
+    ta.remove();
+  };
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(fallback);
+  else fallback();
+}
+
+function prettyJson(t) {
+  try { return JSON.stringify(JSON.parse(t), null, 2); } catch { return String(t ?? ''); }
+}
+
+async function renderApi(panel, ctx, el) {
+  const [d, logs] = await Promise.all([
+    api.get('/api/admin/api-clients'),
+    api.get('/api/admin/api-logs?limit=40').catch(() => ({ rows: [], stats: {} })),
+  ]);
+  const st = d.stats || {};
+  const rows = d.rows || [];
+  const demo = d.meta.demo;
+
+  const ipCell = (c) => {
+    if (!c.ip_list.length) return `<span class="badge badge-red">未配置</span>`;
+    if (c.ip_list.includes('*')) return `<span class="badge badge-amber">不限（*）</span>`;
+    const first = esc(c.ip_list[0]);
+    const more = c.ip_list.length > 1 ? `<div class="cell-sub" title="${esc(c.ip_list.join('\n'))}">等 ${c.ip_list.length} 条规则</div>` : '';
+    return `<span class="mono">${first}</span>${more}`;
+  };
+
+  panel.innerHTML = `
+    ${demo ? `<div class="notice red" style="margin-bottom:12px">${icon('warn', 14)}
+      <div><b>演示环境只读：</b>开通与修改 API 接入已禁用，请在正式部署的实例里操作。</div></div>` : ''}
+
+    <div class="kpis" style="margin-bottom:14px">
+      <div class="kpi"><div class="lb">接入方</div><div class="vl">${st.clients || 0}</div><div class="sb">已开通的外部系统</div></div>
+      <div class="kpi"><div class="lb">启用中</div><div class="vl">${st.active || 0}</div><div class="sb">密钥可用</div></div>
+      <div class="kpi"><div class="lb">今日调用</div><div class="vl">${st.todayTotal || 0}</div><div class="sb">含失败请求</div></div>
+      <div class="kpi"><div class="lb">今日失败</div><div class="vl" style="${st.todayFail ? 'color:var(--red)' : ''}">${st.todayFail || 0}</div><div class="sb">4xx / 5xx</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>接入方与授权</h3>
+        <span class="muted" style="font-size:12px">密钥只在开通 / 重置时显示一次，库里只存哈希</span>
+      </div>
+      <div class="panel-body flush">
+        <div class="tablewrap">
+          <table class="grid">
+            <thead><tr>
+              <th style="min-width:150px">接入方</th><th>状态</th><th style="min-width:150px">授权 IP</th>
+              <th>权限</th><th>限额</th><th class="num">今日</th><th style="min-width:120px">最近调用</th><th></th>
+            </tr></thead>
+            <tbody>
+              ${rows.map((c) => `<tr style="cursor:default">
+                <td>
+                  <div class="cell-main">${esc(c.name)}</div>
+                  <div class="cell-sub mono">${esc(c.client_id)} · ${esc(c.key_prefix)}…</div>
+                </td>
+                <td>${clientStatus(c)}</td>
+                <td>${ipCell(c)}</td>
+                <td>${(c.scopes || []).map((s) => badge(SCOPE_LABEL[s] || s, 'violet')).join(' ') || '<span class="muted">—</span>'}</td>
+                <td class="muted" style="font-size:11.5px">
+                  ${c.rate_limit ? `${c.rate_limit}/分钟` : '不限速'}<br>
+                  ${c.daily_quota ? `日 ${c.daily_quota}` : '日不限'}
+                </td>
+                <td class="num ${c.last_status && c.last_status >= 400 ? '' : ''}" style="${c.last_status >= 400 ? 'color:var(--red)' : ''}">
+                  ${c.today_calls}${c.last_status ? `<div class="cell-sub">最近 ${c.last_status}</div>` : ''}
+                </td>
+                <td class="muted" style="font-size:11.5px">
+                  ${c.last_used_at ? `${relTime(c.last_used_at)}<div class="cell-sub mono">${esc(c.last_ip || '')}</div>` : '从未调用'}
+                </td>
+                <td class="right nowrap">
+                  <button class="btn btn-sm" data-edit="${c.id}">编辑</button>
+                  <button class="btn btn-sm" data-check="${c.id}">自检</button>
+                  ${c.status === 'revoked' ? '' : `<button class="btn btn-sm" data-rotate="${c.id}">重置密钥</button>`}
+                  ${c.status === 'active'
+                    ? `<button class="btn btn-sm" data-toggle="${c.id}">停用</button>`
+                    : (c.status === 'disabled' ? `<button class="btn btn-sm" data-toggle="${c.id}">启用</button>` : '')}
+                  ${c.status === 'revoked' ? '' : `<button class="btn btn-sm btn-danger" data-revoke="${c.id}">撤销</button>`}
+                </td>
+              </tr>`).join('') || `<tr><td colspan="8"><div class="empty" style="padding:34px">
+                还没有接入方。点右上角「开通 API 接入」，给官网表单、企业微信或第三方系统发一把钥匙。
+              </div></td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-head"><h3>接入方式</h3><span class="muted" style="font-size:12px">三件事同时满足才放行：密钥对得上 · IP 在白名单 · 没超限</span></div>
+      <div class="panel-body">
+        <div class="api-heads">
+          <div class="api-head-card">
+            <div class="t">1 · 鉴权</div>
+            <div class="m">请求头带 <code>Authorization: Bearer &lt;密钥&gt;</code>，或用 <code>X-API-Key</code>。不看登录态，可跨域调用。</div>
+          </div>
+          <div class="api-head-card">
+            <div class="t">2 · IP 授权</div>
+            <div class="m">只有名单内的来源 IP 能进。支持单 IP、网段 <code>10.0.0.0/16</code>、通配 <code>192.168.1.*</code>；名单为空视为全部拒绝。</div>
+          </div>
+          <div class="api-head-card">
+            <div class="t">3 · 限额</div>
+            <div class="m">按接入方单独计：每分钟速率 + 每日配额，超了返回 <code>429</code>，第二天自动恢复。</div>
+          </div>
+        </div>
+
+        <pre class="code-block" style="margin-top:12px">curl -X POST '${esc(d.meta.baseUrl)}/api/v1/leads' \\
+  -H 'Authorization: Bearer &lt;你的密钥&gt;' \\
+  -H 'Content-Type: application/json' \\
+  -d '{"name":"杭州云舟智能装备有限公司","external_id":"WEB-001","contact_name":"王海涛","contact_phone":"13800001234","demand":"车间报工与 ERP 打通"}'</pre>
+
+        <table class="grid" style="margin-top:12px">
+          <thead><tr><th style="width:70px">方法</th><th style="min-width:220px">路径</th><th style="width:90px">权限</th><th>说明</th><th></th></tr></thead>
+          <tbody>
+            ${(d.meta.endpoints || []).map((e, i) => `<tr style="cursor:default">
+              <td>${badge(e.method, METHOD_TONE[e.method] || 'gray')}</td>
+              <td class="mono">${esc(e.path)}</td>
+              <td class="muted" style="font-size:11.5px">${esc(e.scope)}</td>
+              <td class="muted" style="font-size:11.5px">${esc(e.title)} · ${esc(e.desc)}</td>
+              <td class="right"><button class="btn btn-sm" data-try="${i}">试一下</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <div class="panel-head">
+        <h3>调用日志</h3>
+        <div class="row" style="margin-left:auto;gap:6px">
+          <div class="seg" id="logFilter">
+            <button class="on" data-f="all">全部</button>
+            <button data-f="fail">只看失败</button>
+          </div>
+          <button class="btn btn-sm" data-refresh-log>刷新</button>
+        </div>
+      </div>
+      <div class="panel-body flush">
+        <div class="tablewrap" style="max-height:420px">
+          <table class="grid" id="logTable">
+            <thead><tr><th style="width:110px">时间</th><th>接入方</th><th>请求</th><th style="width:70px">状态</th><th style="width:70px" class="num">耗时</th><th style="width:120px">来源 IP</th></tr></thead>
+            <tbody>
+              ${(logs.rows || []).map((l, i) => `<tr data-log="${i}" data-fail="${l.status >= 400 ? 1 : 0}">
+                <td class="mono muted nowrap">${dateTime(l.created_at)}</td>
+                <td>${esc(l.client_name || '—')}</td>
+                <td class="mono" style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                  <b style="color:var(--ink-2)">${esc(l.method)}</b> ${esc(l.path)}
+                  ${l.error ? `<div class="cell-sub" style="color:var(--red)">${esc(l.error)}</div>` : ''}
+                </td>
+                <td>${badge(l.status, l.status >= 400 ? 'red' : 'green')}</td>
+                <td class="num muted">${l.ms} ms</td>
+                <td class="mono muted">${esc(l.ip || '')}</td>
+              </tr>`).join('') || '<tr><td colspan="6"><div class="empty" style="padding:28px">还没有调用记录</div></td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+
+  // 顶部动作
+  const nb = el.querySelector('[data-new-client]');
+  if (nb) nb.onclick = () => openClientForm(null, d, ctx);
+  const dbg = el.querySelector('[data-api-debug]');
+  if (dbg) dbg.onclick = () => openDebug(d, {}, ctx);
+
+  const find = (id) => rows.find((r) => String(r.id) === String(id));
+  panel.querySelectorAll('[data-edit]').forEach((b) => { b.onclick = () => openClientForm(find(b.dataset.edit), d, ctx); });
+  panel.querySelectorAll('[data-check]').forEach((b) => { b.onclick = () => selfCheckClient(find(b.dataset.check), ctx); });
+  panel.querySelectorAll('[data-rotate]').forEach((b) => { b.onclick = () => rotateKey(find(b.dataset.rotate), ctx); });
+  panel.querySelectorAll('[data-revoke]').forEach((b) => { b.onclick = () => revokeClient(find(b.dataset.revoke), ctx); });
+  panel.querySelectorAll('[data-toggle]').forEach((b) => {
+    b.onclick = async () => {
+      const c = find(b.dataset.toggle);
+      const next = c.status === 'active' ? 'disabled' : 'active';
+      try {
+        await api.patch(`/api/admin/api-clients/${c.id}`, { status: next });
+        toast(next === 'active' ? '已启用' : '已停用，该密钥立即失效', 'ok');
+        ctx.refresh();
+      } catch (e) { toast(e.message, 'err'); }
+    };
+  });
+  panel.querySelectorAll('[data-try]').forEach((b) => {
+    b.onclick = () => openDebug(d, { index: Number(b.dataset.try) }, ctx);
+  });
+
+  // 日志筛选与详情
+  panel.querySelectorAll('#logFilter button').forEach((b) => {
+    b.onclick = () => {
+      panel.querySelectorAll('#logFilter button').forEach((x) => x.classList.toggle('on', x === b));
+      const onlyFail = b.dataset.f === 'fail';
+      panel.querySelectorAll('#logTable tbody tr[data-log]').forEach((tr) => {
+        tr.style.display = onlyFail && tr.dataset.fail !== '1' ? 'none' : '';
+      });
+    };
+  });
+  panel.querySelectorAll('#logTable tbody tr[data-log]').forEach((tr) => {
+    tr.onclick = () => showLog((logs.rows || [])[Number(tr.dataset.log)]);
+  });
+  const rl = panel.querySelector('[data-refresh-log]');
+  if (rl) rl.onclick = () => ctx.refresh();
+}
+
+/* ---------------- 开通 / 编辑 ---------------- */
+
+function openClientForm(c, d, ctx) {
+  const isNew = !c;
+  const scopes = c?.scopes || ['lead:read', 'lead:write'];
+  const users = d.users || [];
+  if (!users.length) return toast('还没有在职成员，无法指定线索负责人', 'err');
+
+  const m = modal({
+    title: isNew ? '开通 API 接入' : `接入设置 · ${c.name}`,
+    width: 660,
+    body: `<div class="formgrid">
+        ${field('接入方名称', 'name', { required: true, value: c?.name || '', placeholder: '官网表单 / 企业微信 / 市场部活动页' })}
+        ${field('线索默认负责人', 'owner_id', {
+          required: true,
+          options: users.map((u) => ({ value: u.id, label: `${u.name}${u.title ? ' · ' + u.title : ''} · ${u.org_name}` })),
+          value: c?.owner_id,
+          hint: '外部推来的线索挂在他名下，可见范围按他的组织算',
+        })}
+      </div>
+
+      <div class="field" style="margin-top:12px">
+        <label>接口权限</label>
+        <div class="api-scopes">
+          ${(d.meta.scopes || []).map((s) => `<label class="api-scope">
+            <input type="checkbox" value="${s.key}" ${scopes.includes(s.key) ? 'checked' : ''} data-scope />
+            <span><b>${esc(s.label)}</b><em>${esc(s.desc)}</em></span>
+          </label>`).join('')}
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:12px">
+        <label>授权 IP 白名单 *</label>
+        <textarea class="textarea" name="ip_whitelist" style="font-family:var(--mono);font-size:12px;height:88px"
+          placeholder="10.0.1.20&#10;10.0.0.0/16">${esc(c?.ip_whitelist || '')}</textarea>
+        <div class="hint">每行一条：单 IP <code>10.0.1.20</code>、网段 <code>10.0.0.0/16</code>、通配 <code>192.168.1.*</code>。留空 = 全部拒绝；<code>*</code> = 不限来源（不建议）。</div>
+        <div class="row" style="margin-top:2px">
+          <button class="btn btn-sm" data-fill-ip>填入当前 IP（${esc(d.meta.ip)}）</button>
+          <span class="muted" style="font-size:11.5px">这是你现在的出口 IP；对方服务器要填它自己的公网 IP</span>
+        </div>
+      </div>
+
+      <div class="formgrid" style="margin-top:12px">
+        ${field('每分钟上限', 'rate_limit', { type: 'number', value: c?.rate_limit ?? 60, hint: '0 = 不限速' })}
+        ${field('每日配额', 'daily_quota', { type: 'number', value: c?.daily_quota ?? 5000, hint: '0 = 不限量' })}
+        ${field('授权到期日', 'expire_at', { type: 'date', value: c?.expire_at || '', hint: '留空 = 长期有效' })}
+        ${field('备注', 'remark', { value: c?.remark || '', placeholder: '用途、对接人、合同编号' })}
+      </div>`,
+    footer: `<button class="btn" data-c>取消</button>
+             <button class="btn btn-primary" data-ok>${isNew ? '开通并生成密钥' : '保存'}</button>`,
+    onMount(root, close) {
+      root.querySelector('[data-c]').onclick = close;
+      root.querySelector('[data-fill-ip]').onclick = () => {
+        const ta = root.querySelector('[name="ip_whitelist"]');
+        const cur = ta.value.trim();
+        ta.value = cur ? `${cur}\n${d.meta.ip}` : d.meta.ip;
+      };
+      root.querySelector('[data-ok]').onclick = async () => {
+        const fd = formData(root);
+        const picked = [...root.querySelectorAll('[data-scope]:checked')].map((x) => x.value);
+        if (!picked.length) return toast('请至少勾选一项接口权限', 'err');
+        if (!String(fd.ip_whitelist || '').trim()) return toast('请填写授权 IP 白名单', 'err');
+        const body = {
+          name: fd.name,
+          owner_id: Number(fd.owner_id),
+          scopes: picked,
+          ip_whitelist: fd.ip_whitelist,
+          rate_limit: fd.rate_limit === null ? 0 : Number(fd.rate_limit),
+          daily_quota: fd.daily_quota === null ? 0 : Number(fd.daily_quota),
+          expire_at: fd.expire_at || null,
+          remark: fd.remark || '',
+        };
+        try {
+          if (isNew) {
+            const r = await api.post('/api/admin/api-clients', body);
+            close();
+            showKey(r, ctx);
+          } else {
+            await api.patch(`/api/admin/api-clients/${c.id}`, body);
+            close();
+            toast('已保存', 'ok');
+            ctx.refresh();
+          }
+        } catch (e) { toast(e.message, 'err'); }
+      };
+    },
+  });
+  void m;
+}
+
+/* ---------------- 密钥展示 ---------------- */
+
+function showKey(r, ctx) {
+  const curl = `curl '${r.base_url}/api/v1/ping' \\\n  -H 'Authorization: Bearer ${r.key}'`;
+  modal({
+    title: '密钥已生成',
+    width: 640,
+    body: `<div class="notice red">${icon('warn', 14)}
+        <div><b>这段密钥只显示这一次。</b>关闭后就查不到了，只能回来重置；重置会让旧密钥立刻失效。</div>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>API 密钥</label>
+        <div class="api-key"><code id="keyText">${esc(r.key)}</code>
+          <button class="btn btn-sm" data-copy>复制</button></div>
+        <div class="hint">接入方 ${esc(r.name)} · Client ID <span class="mono">${esc(r.client_id)}</span> · 授权 IP ${esc((r.ip_list || []).join(' , '))}</div>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>先用这条命令验证连通性</label>
+        <pre class="code-block" id="curlText">${esc(curl)}</pre>
+      </div>
+      <div class="hint">返回 <code>{"ok":true,"data":{...}}</code> 就说明密钥、IP 授权和配额都通过了。</div>`,
+    footer: `<button class="btn" data-copy-curl>复制 curl</button>
+             <button class="btn btn-primary" data-debug>立即调试</button>`,
+    onMount(root, close) {
+      root.querySelector('[data-copy]').onclick = () => copyText(r.key, '密钥已复制');
+      root.querySelector('[data-copy-curl]').onclick = () => copyText(curl, 'curl 已复制');
+      root.querySelector('[data-debug]').onclick = () => {
+        close();
+        // 用当前页面的 meta 打开调试台
+        api.get('/api/admin/api-clients').then((d) => openDebug(d, { key: r.key, index: 0 }, ctx)).catch(() => {});
+      };
+    },
+  });
+}
+
+/* ---------------- 重置 / 撤销 / 自检 ---------------- */
+
+function rotateKey(c, ctx) {
+  if (!confirm(`重置「${c.name}」的密钥？旧密钥会立即失效，对方系统需要马上换新。`)) return;
+  api.post(`/api/admin/api-clients/${c.id}/rotate`, {}).then((r) => {
+    showKey(r, ctx);
+    ctx.refresh();
+  }).catch((e) => toast(e.message, 'err'));
+}
+
+function revokeClient(c, ctx) {
+  if (!confirm(`撤销「${c.name}」的接入？密钥立即失效，且不能恢复，只能重新开通。`)) return;
+  api.del(`/api/admin/api-clients/${c.id}`).then((r) => {
+    toast(r.message || '已撤销', 'ok');
+    ctx.refresh();
+  }).catch((e) => toast(e.message, 'err'));
+}
+
+async function selfCheckClient(c, ctx) {
+  let r;
+  try {
+    r = await api.post(`/api/admin/api-clients/${c.id}/selfcheck`, {});
+  } catch (e) { return toast(e.message, 'err'); }
+  const d = r.result;
+  const q = d.quota;
+  modal({
+    title: `连通性自检 · ${c.name}`,
+    width: 560,
+    body: `<div class="notice ${d.allowed ? 'blue' : 'red'}">${icon(d.allowed ? 'check' : 'warn', 14)}
+        <div>${d.allowed
+          ? `来源 IP <b>${esc(d.ip)}</b> 命中规则 <b>${esc(d.matched || '')}</b>，可以通过授权校验。`
+          : `来源 IP <b>${esc(d.ip)}</b> 会被拒绝——但这里只校验 IP 与状态，密钥本身仍以实际请求为准。`}</div>
+      </div>
+      <div class="fields" style="margin-top:12px">
+        <div class="fld"><div class="k">来源 IP</div><div class="v mono">${esc(d.ip)}</div></div>
+        <div class="fld"><div class="k">白名单</div><div class="v mono">${esc(d.whitelist.join(' , ') || '—')}</div></div>
+        <div class="fld"><div class="k">状态</div><div class="v">${d.status === 'active' && !d.revoked ? '启用中' : '已停用 / 已撤销'}</div></div>
+        <div class="fld"><div class="k">今日配额</div><div class="v">${q.limit ? `${q.used} / ${q.limit}` : '不限'}</div></div>
+        <div class="fld"><div class="k">速率上限</div><div class="v">${d.rate_limit ? `${d.rate_limit} 次/分钟` : '不限'}</div></div>
+        <div class="fld"><div class="k">权限</div><div class="v">${esc((d.scopes || []).map((s) => SCOPE_LABEL[s] || s).join(' / '))}</div></div>
+      </div>
+      ${d.reasons.length ? `<div class="notice red" style="margin-top:10px">${icon('warn', 14)}<div>
+        <b>不通过原因</b><ul style="margin:6px 0 0;padding-left:18px;line-height:1.8">
+          ${d.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div></div>` : ''}
+      <div class="muted" style="font-size:11.5px;margin-top:10px">
+        建议让对方从<b>它自己的服务器</b>跑一次 <code>/api/v1/ping</code>，那才是真实的出口 IP。
+      </div>`,
+    footer: `<button class="btn btn-primary" data-c>知道了</button>`,
+    onMount(root, close) { root.querySelector('[data-c]').onclick = close; },
+  });
+}
+
+/* ---------------- 调试台 ---------------- */
+
+function openDebug(d, { key = '', index = 0 } = {}, ctx) {
+  const eps = d.meta.endpoints || [];
+  if (!eps.length) return toast('没有可调试的接口', 'err');
+  const start = Math.min(Math.max(0, index), eps.length - 1);
+
+  const m = modal({
+    title: '接口调试台',
+    width: 800,
+    body: `<div class="notice blue" style="margin-bottom:12px">${icon('info', 14)}
+        <div>这里直接从浏览器发一次真实请求，走的是线上同一套鉴权（密钥 + IP + 限额），所以浏览器所在 IP 也要在白名单里。</div>
+      </div>
+      <div class="formgrid">
+        ${field('接口', 'ep', { full: true, options: eps.map((e, i) => ({ value: i, label: `${e.method} ${e.path} · ${e.title}` })), value: start })}
+        ${field('密钥（Bearer）', 'key', { full: true, value: key, placeholder: 'crm_...' })}
+        ${field('路径', 'path', { full: true, value: eps[start].path })}
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>请求体（GET 可留空）</label>
+        <textarea class="textarea" name="body" style="font-family:var(--mono);font-size:11.5px;height:110px"></textarea>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn btn-primary" data-send>${icon('arrow', 12)} 发送请求</button>
+        <span class="muted mono" id="dbgMeta" style="font-size:11.5px">尚未发送</span>
+      </div>
+      <pre class="code-block" id="dbgOut" style="margin-top:10px;max-height:280px">响应会显示在这里</pre>`,
+    footer: `<button class="btn" data-c>关闭</button>`,
+    onMount(root, close) {
+      const sel = root.querySelector('[name="ep"]');
+      const path = root.querySelector('[name="path"]');
+      const body = root.querySelector('[name="body"]');
+      const out = root.querySelector('#dbgOut');
+      const meta = root.querySelector('#dbgMeta');
+
+      const sync = () => {
+        const e = eps[Number(sel.value)];
+        path.value = e.path;
+        body.value = e.body ? JSON.stringify(e.body, null, 2) : '';
+      };
+      sync();
+      sel.onchange = sync;
+      root.querySelector('[data-c]').onclick = close;
+
+      root.querySelector('[data-send]').onclick = async () => {
+        const e = eps[Number(sel.value)];
+        const k = root.querySelector('[name="key"]').value.trim();
+        if (!k) return toast('请填写密钥', 'err');
+        const p = path.value.trim() || e.path;
+        const method = e.method;
+        const raw = body.value.trim();
+        let payload;
+        if (raw && method !== 'GET') {
+          try { payload = JSON.parse(raw); } catch { return toast('请求体不是合法 JSON', 'err'); }
+        }
+        const t0 = performance.now();
+        meta.textContent = '请求中…';
+        out.textContent = '';
+        try {
+          const res = await fetch(p, {
+            method,
+            headers: { Authorization: `Bearer ${k}`, ...(payload ? { 'Content-Type': 'application/json' } : {}) },
+            body: payload ? JSON.stringify(payload) : undefined,
+            credentials: 'omit',
+          });
+          const text = await res.text();
+          const ms = Math.round(performance.now() - t0);
+          meta.innerHTML = `${method} ${esc(p)} → <b class="api-status ${res.ok ? 'ok' : 'err'}">${res.status}</b> · ${ms} ms`;
+          out.textContent = `${res.status} ${res.statusText}\n\n${prettyJson(text)}`;
+          out.classList.toggle('err-text', !res.ok);
+        } catch (err) {
+          meta.innerHTML = `<b class="api-status err">请求失败</b>`;
+          out.textContent = String(err.message || err);
+        }
+      };
+    },
+  });
+  void m;
+}
+
+/* ---------------- 日志详情 ---------------- */
+
+function showLog(l) {
+  if (!l) return;
+  modal({
+    title: '调用详情',
+    width: 660,
+    body: `<div class="fields">
+        <div class="fld"><div class="k">时间</div><div class="v mono">${dateTime(l.created_at)}</div></div>
+        <div class="fld"><div class="k">接入方</div><div class="v">${esc(l.client_name || '—')}</div></div>
+        <div class="fld"><div class="k">请求</div><div class="v mono">${esc(l.method)} ${esc(l.path)}</div></div>
+        <div class="fld"><div class="k">结果</div><div class="v">${badge(l.status, l.status >= 400 ? 'red' : 'green')} · ${l.ms} ms</div></div>
+        <div class="fld"><div class="k">来源 IP</div><div class="v mono">${esc(l.ip || '')}</div></div>
+      </div>
+      ${l.error ? `<div class="notice red" style="margin-top:10px">${icon('warn', 14)}<div>${esc(l.error)}</div></div>` : ''}
+      <div class="field" style="margin-top:12px"><label>请求体</label>
+        <pre class="code-block" style="max-height:150px">${esc(l.request ? prettyJson(l.request) : '（无）')}</pre></div>
+      <div class="field" style="margin-top:10px"><label>响应</label>
+        <pre class="code-block" style="max-height:200px">${esc(l.response ? prettyJson(l.response) : '（无）')}</pre></div>`,
+    footer: `<button class="btn" data-c>关闭</button>`,
+    onMount(root, close) { root.querySelector('[data-c]').onclick = close; },
   });
 }
 
