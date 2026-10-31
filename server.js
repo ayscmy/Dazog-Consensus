@@ -141,6 +141,15 @@ const server = createServer(async (req, res) => {
   }
 });
 
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n[启动失败] 端口 ${PORT} 已被占用。`);
+    console.error('请修改 .env 里的 PORT（例如 8082），或先停掉占用该端口的进程。\n');
+    process.exit(1);
+  }
+  throw err;
+});
+
 server.listen(PORT, HOST, () => {
   console.log('');
   console.log('  MSERM CRM 网络版已启动');

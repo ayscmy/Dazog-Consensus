@@ -1,9 +1,12 @@
 import { createReadStream, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, basename, extname } from 'node:path';
+import { join, basename, extname, resolve } from 'node:path';
 import { one, all, run, nowIso, idOf, SITE_ROOT } from './db.js';
 
-export const RELEASE_DIR = process.env.SITE_RELEASE_DIR || join(SITE_ROOT, '..', 'release');
+// 相对路径按 site/ 目录解析；也可直接写绝对路径
+export const RELEASE_DIR = process.env.SITE_RELEASE_DIR
+  ? resolve(SITE_ROOT, process.env.SITE_RELEASE_DIR)
+  : join(SITE_ROOT, '..', 'release');
 
 export const DAILY_LIMIT = Number(process.env.SITE_DAILY_DOWNLOAD_LIMIT || 20);
 

@@ -651,6 +651,10 @@ code {
   .hero-meta { gap: 22px; }
   .hero-meta b { font-size: 15px; }
   .shot-side { display: none; }
+  .shot-cols { grid-template-columns: 1fr 1fr; }
+  .shot-cols .col:nth-child(3) { display: none; }
+  .shot-main { padding: 12px 12px 14px; }
+  .card b { font-size: 10.5px; }
   .shot-badge { position: static; margin-top: 12px; justify-content: center; }
   .foot-links { gap: 36px; }
   .sec-head { margin-bottom: 32px; }

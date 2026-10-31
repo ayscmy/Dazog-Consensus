@@ -9,7 +9,7 @@ GET(
     return {
       ...info,
       // 官网地址：开源版不内置数据库，需注册会员下载
-      siteUrl: process.env.SITE_URL || 'http://localhost:8090',
+      siteUrl: process.env.SITE_URL || 'http://localhost:8099',
       edition: process.env.CRM_EDITION || 'community',
     };
   },

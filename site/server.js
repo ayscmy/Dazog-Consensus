@@ -10,7 +10,7 @@ import { RELEASE_DIR, listVersions } from './src/versions.js';
 import { mailReady } from './src/mail.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)));
-const PORT = Number(process.env.PORT || 8090);
+const PORT = Number(process.env.PORT || 8099);
 const HOST = process.env.HOST || '0.0.0.0';
 
 migrate();
@@ -67,6 +67,15 @@ const server = createServer(async (req, res) => {  const started = Date.now();
       console.log(`${req.method} ${url.pathname} ${res.statusCode} ${Date.now() - started}ms`);
     }
   }
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n[启动失败] 端口 ${PORT} 已被占用。`);
+    console.error('请修改 site/.env 里的 PORT（例如 8100），或先停掉占用该端口的进程。\n');
+    process.exit(1);
+  }
+  throw err;
 });
 
 server.listen(PORT, HOST, () => {
