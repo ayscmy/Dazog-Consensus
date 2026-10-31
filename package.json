@@ -1,0 +1,29 @@
+{
+  "name": "mserm-crm",
+  "version": "2.6.0",
+  "description": "MSERM 集团 CRM —— 线索到回款全流程，Node 原生服务 + SQLite，多用户权限与审批流转",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "keywords": [
+    "crm",
+    "sqlite",
+    "node",
+    "quotation",
+    "contract",
+    "approval"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/mserm/mserm-crm.git"
+  },
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "dev": "node --no-warnings --watch server.js",
+    "site": "node --no-warnings site/server.js",
+    "site:dev": "node --no-warnings --watch site/server.js",
+    "backup": "node --no-warnings src/backup.js"
+  }
+}

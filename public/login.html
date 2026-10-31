@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>登录 · MSERM CRM</title>
+<link rel="stylesheet" href="/css/base.css" />
+<link rel="stylesheet" href="/css/login.css" />
+</head>
+<body class="login">
+
+<aside class="brandside">
+  <div class="brand-top">
+    <div class="logo-mark">M</div>
+    <div class="logo-text">MSERM<span>CRM 集团版</span></div>
+  </div>
+
+  <div class="brand-mid">
+    <h1>从一条线索<br />到一笔回款的<em>完整流转</em></h1>
+    <p>线索、客户、商机、报价、合同、开票、回款在同一条链路上，每个交接点都有硬性条件与审批留痕。</p>
+  </div>
+
+  <div class="brand-points">
+    <div class="pt">
+      <div class="pt-ico">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="1.5" y="1.5" width="5" height="5" rx="1" /><rect x="9.5" y="1.5" width="5" height="5" rx="1" />
+          <rect x="1.5" y="9.5" width="5" height="5" rx="1" /><rect x="9.5" y="9.5" width="5" height="5" rx="1" />
+        </svg>
+      </div>
+      <div><b>集团多组织数据隔离</b><span>集团 / 公司 / 部门三级，按组织树自动收口可见范围</span></div>
+    </div>
+    <div class="pt">
+      <div class="pt-ico">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M2 8h3l1.5-4 3 8L11 8h3" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+      <div><b>折扣与合同分级审批</b><span>折扣按档位自动生成审批链，合同过销售、财务、法务三关</span></div>
+    </div>
+    <div class="pt">
+      <div class="pt-ico">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h6" stroke-linecap="round" />
+        </svg>
+      </div>
+      <div><b>三单匹配与应收账龄</b><span>合同额、开票额、回款额实时对账，逾期自动分档预警</span></div>
+    </div>
+  </div>
+
+  <div class="brand-foot">
+    <span>MSERM CRM v2.0 · 网络版</span>
+    <span>数据存储于服务端 SQLite</span>
+  </div>
+</aside>
+
+<main class="formside">
+  <div class="formbox">
+    <h2>登录工作台</h2>
+    <div class="sub">使用集团分配的账号登录，权限由角色与所属组织决定</div>
+
+    <form class="login-form" id="loginForm" autocomplete="off">
+      <div class="field">
+        <label for="username">账号</label>
+        <input class="input" id="username" name="username" placeholder="例如 ae01" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="password">密码</label>
+        <input class="input" id="password" name="password" type="password" placeholder="请输入密码" autocomplete="current-password" />
+      </div>
+      <div class="login-err" id="loginErr"></div>
+      <button class="login-btn" type="submit" id="loginBtn">登录</button>
+    </form>
+
+    <div class="demo" id="demo">
+      <div class="demo-head" id="demoHead">
+        <span>演示账号（点击自动填入）</span>
+        <svg class="chev" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </div>
+      <div class="demo-body" id="demoBody"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+// 演示账号只在「官网下载的演示库」里存在；自建库隐藏这一块
+fetch('/api/setup/status').then((r) => r.json()).then((d) => {
+  if (d.needed) { location.replace('/setup.html'); return; }
+  if (!d.demo) {
+    const box = document.getElementById('demo');
+    box.outerHTML = '<div class="demo-empty">账号由管理员在「用户与组织」中创建，忘记密码请联系管理员重置。</div>';
+  }
+}).catch(() => {});
+
+const ACCOUNTS = [
+  ['gm01', '张伟', '总经理 · 全集团'],
+  ['dir01', '李强', '华东销售总监'],
+  ['mgr01', '王敏', '销售一部经理'],
+  ['ae01', '陈静', '客户经理（华东一部）'],
+  ['sdr01', '周婷', '线索专员'],
+  ['fin01', '孙丽', '财务经理'],
+  ['legal01', '吴峰', '法务顾问'],
+  ['ae04', '林涛', '客户经理（华南）'],
+  ['admin', '系统管理员', '用户与组织维护'],
+];
+const body = document.getElementById('demoBody');
+body.innerHTML = ACCOUNTS.map(([u, n, r]) =>
+  `<button type="button" class="demo-item" data-u="${u}">
+     <b>${n}</b><span>${r}</span><code>${u}</code>
+   </button>`).join('');
+
+document.getElementById('demoHead').onclick = () => document.getElementById('demo').classList.toggle('open');
+body.onclick = (e) => {
+  const b = e.target.closest('.demo-item');
+  if (!b) return;
+  document.getElementById('username').value = b.dataset.u;
+  document.getElementById('password').value = 'crm123456';
+  document.getElementById('password').focus();
+};
+
+const form = document.getElementById('loginForm');
+const errBox = document.getElementById('loginErr');
+const btn = document.getElementById('loginBtn');
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  errBox.classList.remove('show');
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  if (!username || !password) {
+    errBox.textContent = '请输入账号和密码';
+    errBox.classList.add('show');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '登录中…';
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '登录失败');
+    location.href = '/app.html';
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = '登录';
+  }
+};
+</script>
+</body>
+</html>

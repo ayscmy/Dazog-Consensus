@@ -1,0 +1,130 @@
+/* 登录页 */
+body.login {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(420px, .95fr);
+  height: 100vh;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* 左侧品牌区 */
+.brandside {
+  position: relative;
+  overflow: hidden;
+  background: #0d0f13;
+  color: #fff;
+  padding: 40px 48px;
+  display: flex;
+  flex-direction: column;
+}
+.brandside::before {
+  content: "";
+  position: absolute; inset: -20% -10% auto auto;
+  width: 620px; height: 620px;
+  background: radial-gradient(circle, rgba(47,107,255,.35), transparent 62%);
+  filter: blur(20px);
+}
+.brandside::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at 30% 40%, #000 20%, transparent 78%);
+}
+.brand-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(145deg, #4b83ff, #2456e0);
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 13px; letter-spacing: .02em;
+  box-shadow: 0 2px 10px rgba(47,107,255,.45);
+}
+.logo-text { font-size: 13.5px; font-weight: 600; letter-spacing: .06em; }
+.logo-text span { color: rgba(255,255,255,.42); font-weight: 500; margin-left: 6px; letter-spacing: .02em; }
+
+.brand-mid { position: relative; z-index: 1; margin-top: auto; margin-bottom: auto; max-width: 460px; }
+.brand-mid h1 {
+  font-size: 34px; line-height: 1.28; font-weight: 600; letter-spacing: -.015em;
+}
+.brand-mid h1 em { font-style: normal; color: #6f9bff; }
+.brand-mid p { margin-top: 14px; font-size: 14px; line-height: 1.7; color: rgba(255,255,255,.56); }
+
+.brand-points { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 14px; margin-bottom: 42px; }
+.brand-points .pt { display: flex; gap: 11px; align-items: flex-start; }
+.pt-ico {
+  width: 26px; height: 26px; flex: 0 0 26px; border-radius: 7px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.08);
+  display: grid; place-items: center; color: #8fb2ff;
+}
+.pt b { display: block; font-size: 13px; font-weight: 500; }
+.pt span { font-size: 12px; color: rgba(255,255,255,.45); }
+
+.brand-foot {
+  position: relative; z-index: 1;
+  display: flex; justify-content: space-between;
+  font-size: 11.5px; color: rgba(255,255,255,.3);
+}
+
+/* 右侧表单 */
+.formside { display: flex; align-items: center; justify-content: center; padding: 32px; }
+.formbox { width: 100%; max-width: 344px; }
+.formbox h2 { font-size: 21px; font-weight: 600; letter-spacing: -.01em; }
+.formbox .sub { margin-top: 6px; font-size: 13px; color: var(--ink-3); margin-bottom: 26px; }
+
+.login-form { display: flex; flex-direction: column; gap: 14px; }
+.login-form .field > label { font-size: 12.5px; }
+.login-form .input { height: 38px; font-size: 13.5px; }
+.login-btn {
+  height: 38px; margin-top: 6px; border-radius: 7px;
+  background: var(--accent); color: #fff; font-weight: 500; font-size: 13.5px;
+  transition: background .12s, box-shadow .12s;
+}
+.login-btn:hover { background: var(--accent-ink); }
+.login-btn:disabled { opacity: .6; cursor: default; }
+
+.login-err {
+  display: none; padding: 9px 11px; border-radius: 6px;
+  background: var(--red-soft); color: #a63a33; font-size: 12.5px;
+  border: 1px solid #f5d5d2;
+}
+.login-err.show { display: block; }
+
+/* 演示账号 */
+.demo {
+  margin-top: 26px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+}
+.demo-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; background: var(--bg-sub); cursor: pointer;
+  font-size: 12px; color: var(--ink-2); font-weight: 500;
+}
+.demo-head .chev { color: var(--ink-4); transition: transform .15s; }
+.demo.open .demo-head .chev { transform: rotate(180deg); }
+.demo-body { display: none; padding: 6px; max-height: 232px; overflow: auto; }
+.demo.open .demo-body { display: block; }
+.demo-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 8px; border-radius: 5px; text-align: left;
+}
+.demo-item:hover { background: var(--hover); }
+.demo-item b { font-weight: 500; font-size: 12.5px; width: 62px; }
+.demo-item span { font-size: 11.5px; color: var(--ink-3); flex: 1; }
+.demo-item code { font-family: var(--mono); font-size: 11px; color: var(--ink-4); }
+
+/* 自建库：没有演示账号时的提示条 */
+.demo-empty {
+  margin-top: 26px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+@media (max-width: 900px) {
+  body.login { grid-template-columns: 1fr; }
+  .brandside { display: none; }
+}

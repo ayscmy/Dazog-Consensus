@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>初始化 · MSERM CRM 开源版</title>
+<link rel="stylesheet" href="/css/base.css" />
+<link rel="stylesheet" href="/css/login.css" />
+<link rel="stylesheet" href="/css/setup.css" />
+</head>
+<body class="login setup-page">
+
+<aside class="brandside">
+  <div class="brand-top">
+    <div class="logo-mark">M</div>
+    <div class="logo-text">MSERM<span>CRM 开源版</span></div>
+  </div>
+
+  <div class="brand-mid">
+    <h1>三步跑起来<br />从一条线索到一笔<em>回款</em></h1>
+    <p>开源仓库不附带数据库文件。这里创建你自己的空库与管理员，演示数据可到官网注册会员后免费下载。</p>
+  </div>
+
+  <div class="brand-points">
+    <div class="pt">
+      <div class="pt-ico">1</div>
+      <div><b>创建集团与管理员</b><span>组织树、角色权限、审批链都基于这个根节点</span></div>
+    </div>
+    <div class="pt">
+      <div class="pt-ico">2</div>
+      <div><b>按需补全企业信息</b><span>公司抬头、税号、开户行用于合同与报价单模板</span></div>
+    </div>
+    <div class="pt">
+      <div class="pt-ico">3</div>
+      <div><b>需要演示数据？</b><span>官网注册会员 → 会员中心下载演示数据库 → 放入 data/ 目录</span></div>
+    </div>
+  </div>
+
+  <div class="brand-foot">
+    <span>MSERM CRM · Community Edition</span>
+    <span>Node 22 + SQLite · 零第三方依赖</span>
+  </div>
+</aside>
+
+<main class="formside">
+  <div class="formbox setup-box">
+    <div class="setup-head">
+      <span class="badge">首次启动</span>
+      <h2>初始化你的工作区</h2>
+      <div class="sub">该表单只会出现一次。创建完成后，此页面自动失效。</div>
+    </div>
+
+    <form class="login-form" id="setupForm" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="company">企业 / 集团名称</label>
+        <input class="input" id="company" placeholder="例如 北辰集团" maxlength="40" />
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="name">管理员姓名</label>
+          <input class="input" id="name" placeholder="例如 张伟" maxlength="20" />
+        </div>
+        <div class="field">
+          <label for="phone">手机号<span class="opt">选填</span></label>
+          <input class="input" id="phone" placeholder="用于登录提醒" maxlength="11" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="username">登录账号</label>
+        <input class="input" id="username" placeholder="字母开头，3–24 位" autocomplete="username" />
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="password">密码</label>
+          <input class="input" id="password" type="password" placeholder="至少 8 位，含字母和数字" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label for="password2">确认密码</label>
+          <input class="input" id="password2" type="password" placeholder="再输入一次" autocomplete="new-password" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="email">邮箱<span class="opt">选填，用于接收报价单/合同通知</span></label>
+        <input class="input" id="email" placeholder="name@company.com" autocomplete="email" />
+      </div>
+
+      <div class="login-err" id="setupErr"></div>
+      <button class="login-btn" type="submit" id="setupBtn">创建并进入登录</button>
+    </form>
+
+    <div class="setup-note">
+      <div class="note-title">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <circle cx="8" cy="8" r="6.4" /><path d="M8 7.2v4M8 4.9v.9" stroke-linecap="round" />
+        </svg>
+        开源仓库为什么不带数据库？
+      </div>
+      <p>仓库只保留代码与表结构，避免把客户数据、账号口令带进版本历史。需要开箱即用的演示数据（组织、产品、客户、商机、报价、合同、回款），请到官网注册会员，在会员中心免费下载。</p>
+      <a class="note-link" id="siteLink" href="http://localhost:8090" target="_blank" rel="noopener">
+        前往官网获取演示数据库
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 9l6-6M4.5 3H9v4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+  </div>
+</main>
+
+<script type="module" src="/js/setup.js"></script>
+</body>
+</html>

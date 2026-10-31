@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MSERM CRM · 开源的集团级客户与回款管理系统</title>
+<meta name="description" content="MSERM CRM：线索、客户、商机、报价、合同、开票、回款在同一条链路上。开源代码 + 官网会员免费下载演示数据库，Node 22 单文件部署，零第三方依赖。" />
+<meta property="og:title" content="MSERM CRM · 开源的集团级客户与回款管理系统" />
+<meta property="og:description" content="开源代码，演示数据库官网会员免费下载。Node 22 + SQLite，零第三方依赖，一条命令启动。" />
+<link rel="stylesheet" href="/assets/site.css" />
+<link rel="icon" href="/assets/favicon.svg" />
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark">M</span>
+      <span class="brand-name">MSERM<span>CRM</span></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#features">产品能力</a>
+      <a href="#flow">业务流转</a>
+      <a href="#download">下载</a>
+      <a href="#faq">常见问题</a>
+      <a href="https://gitee.com/mserm/mserm-crm" target="_blank" rel="noopener" data-repo-link>开源仓库</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="/login.html">登录</a>
+      <a class="btn btn-primary" href="/signup.html">免费注册下载</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <div class="pill">
+          <span class="dot"></span>
+          v<span id="verInline">2.6.0</span> · 开源版已发布 · AGPL-3.0
+        </div>
+        <h1>从一条线索<br />到一笔<em>回款</em></h1>
+        <p class="lead">
+          线索、客户、商机、报价、合同、开票、回款在同一条链路上。
+          每个交接点都有硬性条件、折扣审批与操作留痕，而不是七套 Excel。
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" href="/signup.html">
+            注册会员，免费下载数据库
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8h10M9 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a class="btn btn-outline btn-lg" href="#download">查看版本说明</a>
+        </div>
+        <div class="hero-meta">
+          <div><b>0</b><span>第三方依赖</span></div>
+          <div><b>1</b><span>条命令启动</span></div>
+          <div><b>40+</b><span>端到端用例</span></div>
+          <div><b>AGPL-3.0</b><span>源码开放</span></div>
+        </div>
+      </div>
+
+      <!-- 产品界面示意（纯 CSS，无截图失真） -->
+      <div class="hero-shot" aria-hidden="true">
+        <div class="shot">
+          <div class="shot-bar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="shot-url">crm.your-company.com/dashboard</span>
+          </div>
+          <div class="shot-body">
+            <aside class="shot-side">
+              <div class="shot-logo"><span>M</span>MSERM</div>
+              <div class="shot-nav on">工作台</div>
+              <div class="shot-nav">线索</div>
+              <div class="shot-nav">客户</div>
+              <div class="shot-nav">商机</div>
+              <div class="shot-nav">报价</div>
+              <div class="shot-nav">合同</div>
+              <div class="shot-nav">回款</div>
+            </aside>
+            <div class="shot-main">
+              <div class="shot-head">
+                <div>
+                  <h4>销售漏斗 · 本季度</h4>
+                  <span>9 个商机 · 加权预测 ¥4,860,000</span>
+                </div>
+                <div class="shot-tag">进行中</div>
+              </div>
+              <div class="shot-cols">
+                <div class="col">
+                  <div class="col-t">需求确认 <i>3</i></div>
+                  <div class="card">
+                    <b>华东制造 · MES 二期</b>
+                    <span>¥1,280,000 · 陈静</span>
+                    <div class="bar"><i style="width:46%"></i></div>
+                  </div>
+                  <div class="card">
+                    <b>宁波精工 · 数字化车间</b>
+                    <span>¥860,000 · 刘洋</span>
+                    <div class="bar"><i style="width:38%"></i></div>
+                  </div>
+                </div>
+                <div class="col">
+                  <div class="col-t">报价审批 <i>2</i></div>
+                  <div class="card hot">
+                    <b>苏州新材 · WMS 上线</b>
+                    <span>¥740,000 · 折扣 4.17%</span>
+                    <div class="chips"><em>经理已通过</em><em>总监待审</em></div>
+                  </div>
+                  <div class="card">
+                    <b>合肥电子 · 仓储改造</b>
+                    <span>¥320,000 · 王敏</span>
+                  </div>
+                </div>
+                <div class="col">
+                  <div class="col-t">合同签署 <i>2</i></div>
+                  <div class="card">
+                    <b>常州汽配 · 追溯系统</b>
+                    <span>DD-2026-0001 · 已生效</span>
+                    <div class="chips ok"><em>财务已确认</em></div>
+                  </div>
+                </div>
+              </div>
+              <div class="shot-foot">
+                <span>合同额 ¥3,240,000</span><span>开票 ¥2,180,000</span><span>回款 ¥1,960,000</span>
+                <span class="ok">应收 ¥220,000</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="shot-badge">
+          <span class="pulse"></span>
+          报价折扣 4.17% → 自动生成审批链
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 开源 / 会员 对比 -->
+  <section class="compare" id="open">
+    <div class="sec-head">
+      <span class="kicker">开源怎么开</span>
+      <h2>代码全开，数据由你掌控</h2>
+      <p>仓库里只有代码与表结构，没有客户数据、账号口令，也没有数据库文件。</p>
+    </div>
+    <div class="compare-grid">
+      <div class="cmp-card">
+        <div class="cmp-top">
+          <span class="ico">⌘</span>
+          <div>
+            <h3>开源仓库</h3>
+            <p>Gitee 公开，随时 clone 与二次开发</p>
+          </div>
+        </div>
+        <ul>
+          <li>完整前后端源码，零第三方依赖</li>
+          <li>数据库表结构与自动迁移脚本</li>
+          <li>首次启动的安装向导（自建空库）</li>
+          <li>审批引擎、权限模型、单据渲染</li>
+          <li>AGPL-3.0，可商用但需保留开源义务</li>
+        </ul>
+        <a class="btn btn-outline btn-block" href="https://gitee.com/mserm/mserm-crm" target="_blank" rel="noopener" data-repo-link>查看源码</a>
+      </div>
+
+      <div class="cmp-card feature">
+        <div class="cmp-top">
+          <span class="ico">◈</span>
+          <div>
+            <h3>官网会员</h3>
+            <p>注册即免费，下载开箱即用的演示数据库</p>
+          </div>
+        </div>
+        <ul>
+          <li>演示库：集团 / 公司 / 部门三级组织与 9 个角色</li>
+          <li>真实业务数据：客户、商机、报价、合同、发票、回款</li>
+          <li>含合同模板、产品库、审批链完整配置</li>
+          <li>版本更新通知与升级说明</li>
+          <li><b>免费</b>，仅需一个邮箱</li>
+        </ul>
+        <a class="btn btn-primary btn-block" href="/signup.html">免费注册并下载</a>
+      </div>
+    </div>
+    <p class="compare-note">
+      为什么不在仓库里直接放数据库？—— 数据库会随业务演进快速变化，把它放进 Git 既会撑大仓库，
+      也容易把真实客户资料、密码哈希带进历史记录。代码开源、数据自取，是更干净的做法。
+    </p>
+  </section>
+
+  <!-- 能力 -->
+  <section class="features" id="features">
+    <div class="sec-head">
+      <span class="kicker">产品能力</span>
+      <h2>不是又一个表单收集器</h2>
+      <p>权限在服务端 SQL 收口，审批在服务端推进，数字能被财务对上。</p>
+    </div>
+    <div class="feat-grid">
+      <article class="feat">
+        <span class="feat-ico">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2.5" y="2.5" width="6" height="6" rx="1.4"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.4"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.4"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.4"/></svg>
+        </span>
+        <h4>集团多组织隔离</h4>
+        <p>集团 / 公司 / 部门 / 团队四级组织树，路径前缀一次收口可见范围，跨域访问直接 403。</p>
+      </article>
+      <article class="feat">
+        <span class="feat-ico">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 13.5l3.6-3.6 2.4 2.4L14.8 6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.5 6h3.3v3.3" stroke-linecap="round"/></svg>
+        </span>
+        <h4>折扣分级审批</h4>
+        <p>未让价免审，直接进合同；有折扣按 5% / 10% 阈值逐级加签，审批人由组织树就近推导。</p>
+      </article>
+      <article class="feat">
+        <span class="feat-ico">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 2.5h7l3 3v12H5z" stroke-linejoin="round"/><path d="M7.5 9h5M7.5 12h5M7.5 6h2" stroke-linecap="round"/></svg>
+        </span>
+        <h4>订单合同 / 条款合同</h4>
+        <p>订单合同按中国发票版式输出，价税合计带大写；条款合同套模板自动填充甲乙方与编号。</p>
+      </article>
+      <article class="feat">
+        <span class="feat-ico">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2.5l7 3v5c0 4-3 6.2-7 7-4-.8-7-3-7-7v-5z" stroke-linejoin="round"/><path d="M7.2 10l2 2 3.6-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <h4>字段级脱敏</h4>
+        <p>成本、毛利对业务员在服务端剔除，前端拿不到就不存在越权查看的可能。</p>
+      </article>
+      <article class="feat">
+        <span class="feat-ico">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.2"/><path d="M10 6v4.2l2.8 1.6" stroke-linecap="round"/></svg>
+        </span>
+        <h4>三单匹配与账龄</h4>
+        <p>合同额、开票额、回款额实时对账，逾期自动分档预警，财务不再靠手工台账。</p>
+      </article>
+      <article class="feat">
+        <span class="feat-ico">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5h14M3 10h14M3 15.5h8" stroke-linecap="round"/></svg>
+        </span>
+        <h4>离职交接</h4>
+        <p>先交接客户与商机，再停用账号；再次登录会明确告知离职时间与接手人。</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 流程 -->
+  <section class="flow" id="flow">
+    <div class="sec-head">
+      <span class="kicker">业务流转</span>
+      <h2>五个交接点，条件写死在服务端</h2>
+    </div>
+    <ol class="flow-list">
+      <li><span class="n">01</span><b>线索</b><p>来源、评级、跟进记录齐备才允许转商机</p></li>
+      <li><span class="n">02</span><b>商机</b><p>七阶段推进，每阶段需上传证据；赢单绑定合同生效</p></li>
+      <li><span class="n">03</span><b>报价</b><p>多版本 + 折扣审批；通过后生成客户版报价单并邮件/短信送达</p></li>
+      <li><span class="n">04</span><b>合同</b><p>订单 / 条款两类，销售→财务→法务三关，编号自动递增</p></li>
+      <li><span class="n">05</span><b>回款</b><p>开票、回款核销、应收账龄，三单必须对得上</p></li>
+    </ol>
+  </section>
+
+  <!-- 下载 -->
+  <section class="download" id="download">
+    <div class="download-inner">
+      <div class="dl-copy">
+        <span class="kicker light">下载</span>
+        <h2>注册会员，免费获取演示数据库</h2>
+        <p>数据库放进 <code>data/crm.db</code>，执行 <code>npm start</code> 即可用演示账号体验完整流程。开源代码请从 Gitee 获取。</p>
+        <div class="dl-steps">
+          <div><span>1</span>注册并验证邮箱</div>
+          <div><span>2</span>会员中心下载最新版安装包</div>
+          <div><span>3</span>解压放入 data 目录，启动</div>
+        </div>
+        <a class="btn btn-light btn-lg" href="/signup.html">立即注册</a>
+      </div>
+      <div class="dl-card" id="dlCard">
+        <div class="dl-card-head">
+          <span>最新版本</span>
+          <span class="dl-ver" id="dlVer">加载中…</span>
+        </div>
+        <div class="dl-meta" id="dlMeta"></div>
+        <div class="dl-notes" id="dlNotes"></div>
+        <a class="btn btn-primary btn-block" id="dlBtn" href="/signup.html">登录后下载</a>
+        <div class="dl-hint">下载需登录会员账号 · 每日限 20 次</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq" id="faq">
+    <div class="sec-head">
+      <span class="kicker">常见问题</span>
+      <h2>动手之前，先把这几件事说清楚</h2>
+    </div>
+    <div class="faq-list">
+      <details open>
+        <summary>开源仓库里为什么没有数据库？</summary>
+        <p>数据库是运行态产物，随业务演进而变。放进 Git 会不断膨胀，也容易泄露真实客户资料与密码哈希。仓库只提供表结构与自动迁移，空库启动后由安装向导创建第一个管理员；需要演示数据就到官网会员中心下载。</p>
+      </details>
+      <details>
+        <summary>下载的数据库怎么用？</summary>
+        <p>把解压得到的 <code>crm.db</code> 放到项目 <code>data/</code> 目录（覆盖同名文件前请先备份自己的库），然后 <code>npm start</code>。演示账号见压缩包内的《安装说明》，初始密码统一为 <code>crm123456</code>，登录后请立即修改。</p>
+      </details>
+      <details>
+        <summary>需要什么运行环境？</summary>
+        <p>Node.js ≥ 22.5（使用内置 <code>node:sqlite</code>）。不需要 Docker、不需要 MySQL、不需要 <code>npm install</code>，因为项目零第三方依赖。</p>
+      </details>
+      <details>
+        <summary>可以商用吗？</summary>
+        <p>可以。代码以 AGPL-3.0 发布：内部使用不受限制；若修改后以 SaaS 形式对外提供服务，需要开放修改后的源码。需要闭源分发或去除开源义务，可联系作者获取商业授权。</p>
+      </details>
+      <details>
+        <summary>会员收费吗？会收集什么信息？</summary>
+        <p>免费。注册只要求邮箱、称呼与公司名称，用于版本更新通知与下载统计；不会向第三方出售或共享。可随时在会员中心修改资料或联系管理员注销。</p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <div class="foot-brand">
+      <span class="brand-mark">M</span>
+      <div>
+        <b>MSERM CRM</b>
+        <p>开源的集团级客户与回款管理系统</p>
+      </div>
+    </div>
+    <div class="foot-links">
+      <div>
+        <h5>产品</h5>
+        <a href="#features">产品能力</a>
+        <a href="#flow">业务流转</a>
+        <a href="#download">下载</a>
+      </div>
+      <div>
+        <h5>开发者</h5>
+        <a href="https://gitee.com/mserm/mserm-crm" target="_blank" rel="noopener" data-repo-link>Gitee 仓库</a>
+        <a href="https://gitee.com/mserm/mserm-crm/issues" target="_blank" rel="noopener">问题反馈</a>
+        <a href="/login.html">会员登录</a>
+      </div>
+      <div>
+        <h5>法律</h5>
+        <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a>
+        <a href="#faq">常见问题</a>
+      </div>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© <span id="year"></span> MSERM · 代码开源，数据自持</span>
+    <span>Node 22 · SQLite · 零第三方依赖</span>
+  </div>
+</footer>
+
+<script type="module" src="/assets/home.js"></script>
+</body>
+</html>

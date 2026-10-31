@@ -1,0 +1,95 @@
+/* 安装向导：复用登录页骨架，表单更宽、多字段 */
+body.setup-page .formbox.setup-box {
+  width: 520px;
+  max-width: calc(100vw - 48px);
+}
+
+.setup-head { margin-bottom: 22px; }
+.setup-head .badge {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: .08em;
+  color: #2f6bff;
+  background: rgba(47, 107, 255, .09);
+  border: 1px solid rgba(47, 107, 255, .16);
+  border-radius: 20px;
+  padding: 3px 9px;
+  margin-bottom: 10px;
+}
+.setup-head h2 { margin: 0 0 6px; }
+.setup-head .sub { margin: 0; }
+
+.setup-box .grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+@media (max-width: 560px) {
+  .setup-box .grid2 { grid-template-columns: 1fr; }
+}
+
+.setup-box .field .opt {
+  color: #9aa3af;
+  font-weight: 400;
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+.setup-note {
+  margin-top: 22px;
+  padding: 14px 16px;
+  border: 1px solid #e6e9ef;
+  background: #fafbfc;
+  border-radius: 10px;
+}
+.setup-note .note-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+}
+.setup-note p {
+  margin: 8px 0 10px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #6b7280;
+}
+.setup-note .note-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #2f6bff;
+  text-decoration: none;
+}
+.setup-note .note-link:hover { text-decoration: underline; }
+
+/* 成功态 */
+.setup-done {
+  text-align: left;
+}
+.setup-done .ok-mark {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: #e9f7ef;
+  color: #1a9d5b;
+  display: grid; place-items: center;
+  margin-bottom: 16px;
+}
+.setup-done h2 { margin: 0 0 8px; }
+.setup-done p { font-size: 13px; line-height: 1.8; color: #6b7280; margin: 0 0 18px; }
+.setup-done .cred {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 14px;
+  border: 1px dashed #d7dce4;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.setup-done .cred span { color: #8b93a1; }
+.setup-done .cred b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>会员中心 · MSERM CRM</title>
+<link rel="stylesheet" href="/assets/site.css" />
+<link rel="stylesheet" href="/assets/app.css" />
+<link rel="icon" href="/assets/favicon.svg" />
+</head>
+<body class="app-body">
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark">M</span>
+      <span class="brand-name">MSERM<span>会员中心</span></span>
+    </a>
+    <nav class="top-links">
+      <a href="/account.html" class="on">下载与账户</a>
+      <a href="/" target="_blank" rel="noopener">官网首页</a>
+      <a href="#" id="repoLink" target="_blank" rel="noopener">开源仓库</a>
+      <a href="/admin.html" id="adminLink" style="display:none">管理后台</a>
+    </nav>
+    <div class="top-user">
+      <span class="avatar" id="avatar">·</span>
+      <span id="who">加载中…</span>
+      <button class="btn btn-ghost" id="logout" style="height:30px;font-size:12.5px">退出</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="page-head">
+    <div>
+      <h1 id="hello">会员中心</h1>
+      <p>下载演示数据库、查看版本说明与历史下载记录</p>
+    </div>
+  </div>
+
+  <div id="welcome" class="form-msg ok" style="margin-bottom:16px"></div>
+
+  <!-- 最新版本下载 -->
+  <section class="dl-hero" id="latest">
+    <div>
+      <div class="lv" id="lv">—</div>
+      <h2 id="lvTitle">加载中…</h2>
+      <p id="lvDesc"></p>
+      <div class="meta" id="lvMeta"></div>
+    </div>
+    <div class="actions">
+      <a class="btn btn-primary btn-lg" id="dlBtn" href="#">下载安装包</a>
+      <div class="quota" id="quota"></div>
+    </div>
+  </section>
+
+  <div class="account-grid" style="display:grid;grid-template-columns:1.12fr .88fr;gap:18px;align-items:start">
+    <div>
+      <!-- 历史版本 -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>全部版本</h3>
+            <p>建议使用最新稳定版；beta 版可能包含未完成的迁移</p>
+          </div>
+        </div>
+        <div class="ver-list" id="versions">
+          <div class="empty">加载中…</div>
+        </div>
+      </section>
+
+      <!-- 下载记录 -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>下载记录</h3>
+            <p>用于排查下载失败，保留最近 20 次</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="tbl">
+            <thead><tr><th style="width:110px">版本</th><th style="width:170px">时间</th><th>IP</th></tr></thead>
+            <tbody id="dlRows"><tr><td colspan="3" class="empty">暂无记录</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div>
+      <!-- 账户资料 -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>账户资料</h3>
+            <p>公司名称会出现在版本通知里</p>
+          </div>
+        </div>
+        <form id="profileForm">
+          <div class="field-row">
+            <label for="pName">称呼</label>
+            <input class="inp" id="pName" maxlength="30" />
+          </div>
+          <div class="field-row">
+            <label for="pCompany">公司</label>
+            <input class="inp" id="pCompany" maxlength="60" />
+          </div>
+          <div class="field-row">
+            <label for="pPhone">手机 <span class="opt">选填</span></label>
+            <input class="inp" id="pPhone" maxlength="11" inputmode="numeric" />
+          </div>
+          <div class="field-row">
+            <label>注册邮箱</label>
+            <input class="inp" id="pEmail" disabled />
+          </div>
+          <div class="form-msg" id="profileMsg"></div>
+          <button class="btn btn-primary btn-block" type="submit">保存资料</button>
+        </form>
+      </section>
+
+      <!-- 修改密码 -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h3>修改密码</h3>
+            <p>修改后其他设备会退出登录</p>
+          </div>
+        </div>
+        <form id="pwdForm">
+          <div class="field-row">
+            <label for="oldPwd">当前密码</label>
+            <input class="inp" id="oldPwd" type="password" autocomplete="current-password" />
+          </div>
+          <div class="field-row">
+            <label for="newPwd">新密码</label>
+            <input class="inp" id="newPwd" type="password" autocomplete="new-password" placeholder="至少 8 位，含字母和数字" />
+          </div>
+          <div class="form-msg" id="pwdMsg"></div>
+          <button class="btn btn-outline btn-block" type="submit">更新密码</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script type="module" src="/assets/account.js"></script>
+</body>
+</html>

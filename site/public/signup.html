@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>注册会员 · MSERM CRM</title>
+<meta name="description" content="免费注册 MSERM 官网会员，下载开箱即用的 CRM 演示数据库。" />
+<link rel="stylesheet" href="/assets/site.css" />
+<link rel="stylesheet" href="/assets/app.css" />
+<link rel="icon" href="/assets/favicon.svg" />
+</head>
+<body>
+
+<div class="auth-shell">
+  <aside class="auth-brand">
+    <a class="brand" href="/">
+      <span class="brand-mark">M</span>
+      <span class="brand-name">MSERM<span>CRM</span></span>
+    </a>
+
+    <div class="auth-copy">
+      <h1>一个邮箱，<br />换一套<em>能跑起来</em>的 CRM</h1>
+      <p>开源代码在 Gitee，演示数据库在这里。注册会员后即可下载完整数据包，导入后直接体验报价、合同与回款的真实流转。</p>
+
+      <div class="auth-perks">
+        <div class="auth-perk"><span class="tick">✓</span><span>演示库含 8 级组织、9 个角色、完整产品与客户数据</span></div>
+        <div class="auth-perk"><span class="tick">✓</span><span>报价单可邮件 / 短信发送给客户，带公开查看链接</span></div>
+        <div class="auth-perk"><span class="tick">✓</span><span>订单合同按中国发票版式输出，价税合计自动大写</span></div>
+        <div class="auth-perk"><span class="tick">✓</span><span>版本更新通知，数据库结构变更附升级说明</span></div>
+      </div>
+    </div>
+
+    <div class="foot-note">免费注册 · 不收集身份证与支付信息 · 可随时注销</div>
+  </aside>
+
+  <main class="auth-panel">
+    <div class="auth-box">
+      <h2>注册会员</h2>
+      <p class="sub">已有账号？<a href="/login.html">直接登录</a></p>
+
+      <form id="f" autocomplete="off" novalidate>
+        <div class="field-row">
+          <label for="email">邮箱 <span class="opt">用于接收验证码与版本通知</span></label>
+          <input class="inp" id="email" type="email" placeholder="name@company.com" autocomplete="email" />
+        </div>
+
+        <div class="field-row" id="codeRow">
+          <label for="code">邮箱验证码</label>
+          <div class="inp-code">
+            <input class="inp" id="code" placeholder="6 位数字" maxlength="6" inputmode="numeric" />
+            <button class="btn btn-outline" type="button" id="sendCode">获取验证码</button>
+          </div>
+        </div>
+
+        <div class="field-row two">
+          <div>
+            <label for="name">你的称呼</label>
+            <input class="inp" id="name" placeholder="例如 张伟" maxlength="30" />
+          </div>
+          <div>
+            <label for="company">公司名称</label>
+            <input class="inp" id="company" placeholder="例如 北辰集团" maxlength="60" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label for="phone">手机号 <span class="opt">选填</span></label>
+          <input class="inp" id="phone" placeholder="用于重要版本变更提醒" maxlength="11" inputmode="numeric" />
+        </div>
+
+        <div class="field-row">
+          <label for="password">设置密码 <span class="opt">至少 8 位，含字母和数字</span></label>
+          <input class="inp" id="password" type="password" placeholder="请设置登录密码" autocomplete="new-password" />
+        </div>
+
+        <div class="form-msg" id="msg"></div>
+        <button class="btn btn-primary auth-submit" type="submit" id="submitBtn">注册并下载数据库</button>
+      </form>
+
+      <p class="auth-agree">
+        注册即表示同意我们仅将邮箱用于版本通知与下载统计。代码以
+        <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">AGPL-3.0</a> 开源。
+      </p>
+    </div>
+  </main>
+</div>
+
+<script type="module" src="/assets/signup.js"></script>
+</body>
+</html>

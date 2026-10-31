@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>登录会员中心 · MSERM CRM</title>
+<link rel="stylesheet" href="/assets/site.css" />
+<link rel="stylesheet" href="/assets/app.css" />
+<link rel="icon" href="/assets/favicon.svg" />
+</head>
+<body>
+
+<div class="auth-shell">
+  <aside class="auth-brand">
+    <a class="brand" href="/">
+      <span class="brand-mark">M</span>
+      <span class="brand-name">MSERM<span>CRM</span></span>
+    </a>
+
+    <div class="auth-copy">
+      <h1>回到<em>会员中心</em></h1>
+      <p>下载最新演示数据库、查看历史版本与下载记录。数据库更新时会在这里看到升级说明。</p>
+
+      <div class="auth-perks">
+        <div class="auth-perk"><span class="tick">✓</span><span>最新版安装包含组织、客户、报价、合同与回款数据</span></div>
+        <div class="auth-perk"><span class="tick">✓</span><span>下载记录可追溯，换机器随时重新获取</span></div>
+        <div class="auth-perk"><span class="tick">✓</span><span>账号仅需邮箱，忘记密码可联系管理员重置</span></div>
+      </div>
+    </div>
+
+    <div class="foot-note">© MSERM · 代码开源，数据自持</div>
+  </aside>
+
+  <main class="auth-panel">
+    <div class="auth-box">
+      <h2>会员登录</h2>
+      <p class="sub">还没有账号？<a href="/signup.html">免费注册</a></p>
+
+      <form id="f" autocomplete="off" novalidate>
+        <div class="field-row">
+          <label for="email">邮箱</label>
+          <input class="inp" id="email" type="email" placeholder="注册时使用的邮箱" autocomplete="email" />
+        </div>
+        <div class="field-row">
+          <label for="password">密码</label>
+          <input class="inp" id="password" type="password" placeholder="登录密码" autocomplete="current-password" />
+        </div>
+
+        <div class="form-msg" id="msg"></div>
+        <button class="btn btn-primary auth-submit" type="submit" id="submitBtn">登录</button>
+      </form>
+
+      <div class="auth-switch">
+        只是想拿演示库？<a href="/signup.html">注册后立即下载</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script type="module" src="/assets/login.js"></script>
+</body>
+</html>

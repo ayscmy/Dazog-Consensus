@@ -1,0 +1,48 @@
+# ---------- 运行时数据：开源仓库不提供数据库 ----------
+data/
+site/data/
+release/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# ---------- 依赖与构建产物 ----------
+node_modules/
+dist/
+build/
+.tmp/
+tmp/
+*.log
+npm-debug.log*
+
+# ---------- 本地配置与密钥 ----------
+.env
+.env.*
+!.env.example
+site/.env
+site/.env.*
+!site/.env.example
+*.pem
+*.key
+
+# ---------- 编辑器 / 系统 ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 本项目内部资料，不对外 ----------
+memory/
+legacy/
+# 演示数据生成脚本与打包工具：只保留在维护者本地，开源仓库不提供
+private/
+
+# ---------- 备份与临时文件 ----------
+*.bak
+*.swp
+*~
+backup/
+backups/

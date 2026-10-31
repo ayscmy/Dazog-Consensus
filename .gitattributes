@@ -1,0 +1,25 @@
+# 统一换行，避免 Windows 提交把整仓库标成改动
+* text=auto eol=lf
+
+# 明确的二进制类型，禁止 diff 与换行转换
+*.db binary
+*.db-wal binary
+*.db-shm binary
+*.sqlite binary
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff2 binary
+
+# 这些文件在 Windows 下用 CRLF 也无所谓，但保持 LF 一致
+*.md text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf
