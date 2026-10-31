@@ -70,14 +70,15 @@ chmod +x "$ASKPASS"
 
 push_remote() {  # push_remote <别名> <url> <用户名> <令牌>
   local name="$1" url="$2" user="$3" token="$4"
-  GIT_ASKPASS="$ASKPASS" GIT_USER="$user" GIT_PASS="$token" \
-    git -c credential.helper= push --quiet -u "$url" "$BRANCH:refs/heads/$BRANCH" \
-    && echo "    推送成功 → $url"
   if git remote get-url "$name" >/dev/null 2>&1; then
     git remote set-url "$name" "$url"
   else
     git remote add "$name" "$url"
   fi
+  # 关掉 credential.helper，只让临时 askpass 提供凭据：令牌不进任何配置文件
+  GIT_ASKPASS="$ASKPASS" GIT_TERMINAL_PROMPT=0 GIT_USER="$user" GIT_PASS="$token" \
+    git -c credential.helper= push --quiet -u "$name" "$BRANCH:refs/heads/$BRANCH" \
+    && echo "    推送成功 → $url"
 }
 
 # ---------- Gitee ----------
