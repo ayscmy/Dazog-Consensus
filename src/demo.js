@@ -17,24 +17,21 @@ export const DEMO_RESET_HOURS = Number(process.env.DEMO_RESET_HOURS || 24);
 export const DEMO_HOME = process.env.DEMO_HOME || '';
 
 /** 演示账号是否存在且可用；空库或账号被停用时返回 null */
-export function demoAccount() {
+export async function demoAccount() {
   if (!DEMO_MODE) return null;
-  const row = one(
-    `select id, username, name from users
-      where username = ? and status = 'active' and left_at is null`,
-    DEMO_USER
-  );
+  const row = await one(`select id, username, name from users
+      where username = ? and status = 'active' and left_at is null`, DEMO_USER);
   return row || null;
 }
 
 /** 演示模式的可用性说明，给前端和日志共用 */
-export function demoInfo() {
+export async function demoInfo() {
   if (!DEMO_MODE) return null;
-  const acct = demoAccount();
+  const acct = await demoAccount();
   return {
     ready: Boolean(acct),
     user: acct ? acct.username : DEMO_USER,
     resetHours: DEMO_RESET_HOURS,
-    home: DEMO_HOME,
+    home: DEMO_HOME
   };
 }

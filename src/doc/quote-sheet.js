@@ -4,9 +4,8 @@ import { rmbUpper } from '../money-cn.js';
 import { docShell, docHead, partyBlock, esc, num, ymd } from './base.js';
 
 /** 报价单所需数据（不包含成本，客户可见） */
-export function loadQuoteSheet(quotationId) {
-  const q = one(
-    `select q.*, op.name as opportunity_name, a.name as account_name, a.address as account_address,
+export async function loadQuoteSheet(quotationId) {
+  const q = await one(`select q.*, op.name as opportunity_name, a.name as account_name, a.address as account_address,
             a.phone as account_phone, a.industry, u.name as owner_name, u.email as owner_email,
             u.phone as owner_phone, o.name as org_name
      from quotations q
@@ -14,66 +13,58 @@ export function loadQuoteSheet(quotationId) {
      join accounts a on a.id = q.account_id
      left join users u on u.id = op.owner_id
      left join org_units o on o.id = q.org_id
-     where q.id = ?`,
-    quotationId
-  );
+     where q.id = ?`, quotationId);
   if (!q) return null;
-  const items = all('select * from quotation_items where quotation_id = ? order by seq', q.id);
-  const contact =
-    one('select * from contacts where account_id = ? and is_primary = 1 order by id limit 1', q.account_id) ||
-    one('select * from contacts where account_id = ? order by id limit 1', q.account_id) ||
-    {};
-  return { q, items, contact };
+  const items = await all('select * from quotation_items where quotation_id = ? order by seq', q.id);
+  const contact = (await one('select * from contacts where account_id = ? and is_primary = 1 order by id limit 1', q.account_id)) || (await one('select * from contacts where account_id = ? order by id limit 1', q.account_id)) || {};
+  return {
+    q,
+    items,
+    contact
+  };
 }
-
-export function findQuoteByToken(token) {
-  const q = one('select id from quotations where public_token = ?', String(token || ''));
-  return q ? loadQuoteSheet(q.id) : null;
+export async function findQuoteByToken(token) {
+  const q = await one('select id from quotations where public_token = ?', String(token || ''));
+  return q ? await loadQuoteSheet(q.id) : null;
 }
 
 /** 客户身份可见的报价单（打印 / 邮件链接 / PDF） */
-export function renderSheetHtml({ q, items, contact }, { autoPrint = false } = {}) {
-  const company = companyProfile();
-  const note = String(getSetting('quote.sheet_note') || '').replace(/\\n/g, '\n').split('\n').map((x) => x.replace(/[；;]\s*$/, '')).join('\n');
+export async function renderSheetHtml({
+  q,
+  items,
+  contact
+}, {
+  autoPrint = false
+} = {}) {
+  const company = await companyProfile();
+  const note = String((await getSetting('quote.sheet_note')) || '').replace(/\\n/g, '\n').split('\n').map(x => x.replace(/[；;]\s*$/, '')).join('\n');
   const listTotal = Number(q.list_amount || 0);
   const total = Number(q.amount || 0);
   const discount = Number(q.discount_rate || 0) * 100;
-
-  const rows = items.length
-    ? items
-    : [{ name: q.opportunity_name || '项目报价', spec: '', unit: '项', qty: 1, unit_price: total, amount: total }];
-
+  const rows = items.length ? items : [{
+    name: q.opportunity_name || '项目报价',
+    spec: '',
+    unit: '项',
+    qty: 1,
+    unit_price: total,
+    amount: total
+  }];
   const body = `
   ${docHead({
     company,
     title: '报 价 单',
     subtitle: 'QUOTATION',
     meta: `<div>报价单号：<b>${esc(q.no)}</b></div><div>报价日期：${ymd(q.created_at)}</div>
-           <div>有效期至：<b>${ymd(q.valid_until)}</b></div><div>版本：v${esc(q.version || 1)}</div>`,
+           <div>有效期至：<b>${ymd(q.valid_until)}</b></div><div>版本：v${esc(q.version || 1)}</div>`
   })}
 
-  ${partyBlock(
-    {
-      tag: '客户（甲方）',
-      rows: [
-        ['公司名称', q.account_name],
-        ['联系人', contact.name || '—'],
-        ['联系电话', contact.phone || q.account_phone || '—'],
-        ['电子邮箱', contact.email || '—'],
-        ['地址', q.account_address || '—'],
-      ],
-    },
-    {
-      tag: '供方（乙方）',
-      rows: [
-        ['公司名称', company.name],
-        ['项目负责人', q.owner_name || '—'],
-        ['联系电话', q.owner_phone || company.phone],
-        ['电子邮箱', q.owner_email || '—'],
-        ['地址', company.address],
-      ],
-    }
-  )}
+  ${partyBlock({
+    tag: '客户（甲方）',
+    rows: [['公司名称', q.account_name], ['联系人', contact.name || '—'], ['联系电话', contact.phone || q.account_phone || '—'], ['电子邮箱', contact.email || '—'], ['地址', q.account_address || '—']]
+  }, {
+    tag: '供方（乙方）',
+    rows: [['公司名称', company.name], ['项目负责人', q.owner_name || '—'], ['联系电话', q.owner_phone || company.phone], ['电子邮箱', q.owner_email || '—'], ['地址', company.address]]
+  })}
 
   <h2 class="sec">一、报价明细</h2>
   <table class="items">
@@ -141,11 +132,10 @@ export function renderSheetHtml({ q, items, contact }, { autoPrint = false } = {
     ${esc(company.name)}　${esc(company.address)}　电话：${esc(company.phone)}<br/>
     本报价单由 MSERM CRM 生成，编号 ${esc(q.no)}，客户可通过专属链接在线查看。
   </div>`;
-
   const html = docShell({
     title: `报价单 ${q.no}`,
     note: `报价单 ${q.no} · ${q.account_name} · 合计 ¥${num(total)}`,
-    body,
+    body
   });
   return autoPrint ? html.replace('</body>', '<script>window.addEventListener("load",()=>window.print())</script></body>') : html;
 }

@@ -3,7 +3,7 @@
 线索 → 客户 → 商机 → 报价 → 合同 → 开票 → 回款，在同一条链路上跑完。
 每个跨部门交接点都有硬性校验、折扣审批与操作留痕，而不是七套对不上的 Excel。
 
-**Node 22 + 内置 SQLite · 零第三方依赖 · 无构建步骤 · 一条命令启动**
+**Node 22 · 默认内置 SQLite（零外部依赖）· 可选 PostgreSQL · 无构建步骤 · 一条命令启动**
 
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.5-brightgreen.svg)](https://nodejs.org)
@@ -220,13 +220,23 @@ npm start
 
 复制 `.env.example` 为 `.env`（已被 `.gitignore` 忽略）：
 
+**数据库二选一，由部署者在 `.env` 里决定，最终用户无需关心：**
+
 | 变量 | 默认 | 说明 |
 |---|---|---|
+| `DB_TYPE` | `sqlite` | 数据库类型：`sqlite`（默认，单文件、零外部依赖）或 `postgres` |
+| `DB_FILE` / `CRM_DB` | `./data/crm.db` | SQLite 数据文件路径（仅 sqlite 模式） |
+| `DATABASE_URL` | — | PostgreSQL 连接串。**一旦设置且未显式指定 `DB_TYPE=sqlite`，即自动按 postgres 处理** |
+| `PG_HOST` / `PG_PORT` / `PG_DATABASE` / `PG_USER` / `PG_PASSWORD` / `PG_SSLMODE` | — | 未用 `DATABASE_URL` 时的 PostgreSQL 连接回退参数 |
+| `PG_SCHEMA` | `crm` | PostgreSQL 中 CRM 表所属 schema（与销售系统 `public` 隔离，避免撞表） |
 | `PORT` | `8081` | 主系统端口 |
 | `HOST` | `0.0.0.0` | 监听地址 |
-| `CRM_DB` | `./data/crm.db` | SQLite 文件路径 |
 | `CRM_LOG` | `1` | 是否打印 API 访问日志 |
 | `SITE_URL` | `http://localhost:8099` | 官网地址，安装向导与「获取演示库」入口使用 |
+
+> 选择 PostgreSQL 时，CRM 的表会建在独立的 `crm` schema 下，不会与同库中销售系统的 `public` 表冲突；两种库可在部署时任意切换，业务代码无需改动。
+>
+> 提示：`@babel/standalone` 等历史开发依赖已移除；SQLite 模式无需启动任何数据库服务，PostgreSQL 模式才需要安装 `pg`（已在 `dependencies` 中）。
 
 业务规则（折扣阈值、公司抬头、邮件、短信、报价有效期等）在登录后的「系统设置」里改，存在数据库里，不需要重启。
 
@@ -269,7 +279,7 @@ server {
 }
 ```
 
-**备份**：数据库是单文件，停服后复制 `data/crm.db` 即可；运行中可用 `npm run backup`（SQLite 在线备份到 `data/backups/`）。
+**备份**：两种数据库都支持 `npm run backup`，会把全部 28 张表导出为 JSON 快照到 `data/backups/`。SQLite 模式下也可停服后直接复制 `data/crm.db`（运行中复制请连同 `-wal`/`-shm` 或改用 backup 命令，避免拿到半写状态）；PostgreSQL 模式则从 `crm` schema 逻辑导出，无需停库。
 
 **升级**：`git pull` → 重启。启动时会自动执行增量迁移（`migrate()` 只加列/建表，不删数据）。升级前请备份。
 

@@ -2,17 +2,17 @@ import { one, all } from '../db.js';
 import { companyProfile } from '../settings.js';
 import { rmbUpper } from '../money-cn.js';
 import { docShell, docHead, partyBlock, esc, num, ymd } from './base.js';
-
-const r2 = (n) => Math.round(Number(n || 0) * 100) / 100;
-
+const r2 = n => Math.round(Number(n || 0) * 100) / 100;
 function parseJson(text, fallback) {
   if (!text) return fallback;
-  try { return JSON.parse(text); } catch { return fallback; }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return fallback;
+  }
 }
-
-export function loadContractDoc(contractId) {
-  const c = one(
-    `select c.*, a.name as account_name, a.address as account_address, a.phone as account_phone,
+export async function loadContractDoc(contractId) {
+  const c = await one(`select c.*, a.name as account_name, a.address as account_address, a.phone as account_phone,
             a.industry, op.name as opportunity_name, u.name as owner_name, u.phone as owner_phone,
             u.email as owner_email, o.name as org_name, q.no as quote_no
      from contracts c
@@ -21,50 +21,57 @@ export function loadContractDoc(contractId) {
      left join users u on u.id = c.owner_id
      left join org_units o on o.id = c.org_id
      left join quotations q on q.id = c.quotation_id
-     where c.id = ?`,
-    contractId
-  );
+     where c.id = ?`, contractId);
   if (!c) return null;
-
   let items = parseJson(c.items_json, null);
   if (!items && c.quotation_id) {
-    items = all('select name, spec, unit, qty, unit_price as price from quotation_items where quotation_id = ? order by seq', c.quotation_id);
+    items = await all('select name, spec, unit, qty, unit_price as price from quotation_items where quotation_id = ? order by seq', c.quotation_id);
   }
-  const contact =
-    one('select * from contacts where account_id = ? and is_primary = 1 order by id limit 1', c.account_id) ||
-    one('select * from contacts where account_id = ? order by id limit 1', c.account_id) ||
-    {};
-
+  const contact = (await one('select * from contacts where account_id = ? and is_primary = 1 order by id limit 1', c.account_id)) || (await one('select * from contacts where account_id = ? order by id limit 1', c.account_id)) || {};
   return {
     c,
     items: items || [],
     clauses: parseJson(c.clauses_json, []),
     buyer: parseJson(c.buyer_json, {}),
     seller: parseJson(c.seller_json, {}),
-    contact,
+    contact
   };
 }
 
 /** 订单合同：发票式单据（买卖双方 + 明细 + 税率 + 价税合计） */
-function renderOrder({ c, items, buyer, seller, contact }) {
-  const company = companyProfile();
-  const sellerInfo = { ...company, ...seller };
+async function renderOrder({
+  c,
+  items,
+  buyer,
+  seller,
+  contact
+}) {
+  const company = await companyProfile();
+  const sellerInfo = {
+    ...company,
+    ...seller
+  };
   const rate = Number(c.tax_rate || 0);
   const included = c.tax_mode !== 'excluded';
-
-  const rows = items.map((it) => {
+  const rows = items.map(it => {
     const price = Number(it.price ?? it.unit_price ?? 0);
     const qty = Number(it.qty || 0);
     const gross = r2(price * qty);
     const net = included ? r2(gross / (1 + rate)) : gross;
     const tax = r2(gross - net);
-    return { ...it, price, qty, net, tax, gross: r2(net + tax) };
+    return {
+      ...it,
+      price,
+      qty,
+      net,
+      tax,
+      gross: r2(net + tax)
+    };
   });
   const netSum = r2(rows.reduce((s, r) => s + r.net, 0));
   const taxSum = r2(rows.reduce((s, r) => s + r.tax, 0));
   const grossSum = r2(netSum + taxSum);
   const payable = r2(Number(c.amount || grossSum));
-
   const body = `
   ${docHead({
     company: sellerInfo,
@@ -72,33 +79,16 @@ function renderOrder({ c, items, buyer, seller, contact }) {
     subtitle: 'SALES CONTRACT · ORDER',
     meta: `<div>合同编号：<b>${esc(c.no)}</b></div><div>签订日期：${ymd(c.sign_date || c.created_at)}</div>
            <div>签订地点：${esc(company.address || '—')}</div>
-           ${c.quote_no ? `<div>关联报价：${esc(c.quote_no)}</div>` : ''}`,
+           ${c.quote_no ? `<div>关联报价：${esc(c.quote_no)}</div>` : ''}`
   })}
 
-  ${partyBlock(
-    {
-      tag: '购买方（甲方）',
-      rows: [
-        ['公司名称', buyer.name || c.account_name],
-        ['纳税人识别号', buyer.taxNo || '—'],
-        ['地址', buyer.address || c.account_address || '—'],
-        ['电话', buyer.phone || c.account_phone || '—'],
-        ['开户银行', buyer.bank || '—'],
-        ['银行账号', buyer.account || '—'],
-      ],
-    },
-    {
-      tag: '销售方（乙方）',
-      rows: [
-        ['公司名称', sellerInfo.name],
-        ['纳税人识别号', sellerInfo.taxNo || '—'],
-        ['地址', sellerInfo.address || '—'],
-        ['电话', sellerInfo.phone || '—'],
-        ['开户银行', sellerInfo.bank || '—'],
-        ['银行账号', sellerInfo.account || '—'],
-      ],
-    }
-  )}
+  ${partyBlock({
+    tag: '购买方（甲方）',
+    rows: [['公司名称', buyer.name || c.account_name], ['纳税人识别号', buyer.taxNo || '—'], ['地址', buyer.address || c.account_address || '—'], ['电话', buyer.phone || c.account_phone || '—'], ['开户银行', buyer.bank || '—'], ['银行账号', buyer.account || '—']]
+  }, {
+    tag: '销售方（乙方）',
+    rows: [['公司名称', sellerInfo.name], ['纳税人识别号', sellerInfo.taxNo || '—'], ['地址', sellerInfo.address || '—'], ['电话', sellerInfo.phone || '—'], ['开户银行', sellerInfo.bank || '—'], ['银行账号', sellerInfo.account || '—']]
+  })}
 
   <h2 class="sec">一、标的与价格（${included ? '含税价' : '不含税价'}）</h2>
   <table class="items">
@@ -181,47 +171,39 @@ function renderOrder({ c, items, buyer, seller, contact }) {
     合同编号 ${esc(c.no)} · 由 MSERM CRM 生成 · 打印件与原件具有同等效力<br/>
     ${esc(sellerInfo.name)}　${esc(sellerInfo.address)}　电话：${esc(sellerInfo.phone)}
   </div>`;
-
   return body;
 }
 
 /** 条款合同：模板条款 + 甲乙方自动填充 */
-function renderTerms({ c, clauses, buyer, seller, contact }) {
-  const company = companyProfile();
-  const sellerInfo = { ...company, ...seller };
+async function renderTerms({
+  c,
+  clauses,
+  buyer,
+  seller,
+  contact
+}) {
+  const company = await companyProfile();
+  const sellerInfo = {
+    ...company,
+    ...seller
+  };
   const amount = Number(c.amount || 0);
-
   const body = `
   ${docHead({
     company: sellerInfo,
     title: c.title,
     subtitle: 'CONTRACT',
     meta: `<div>合同编号：<b>${esc(c.no)}</b></div><div>签订日期：${ymd(c.sign_date || c.created_at)}</div>
-           <div>合同金额：¥ ${num(amount)}</div>${c.quote_no ? `<div>关联报价：${esc(c.quote_no)}</div>` : ''}`,
+           <div>合同金额：¥ ${num(amount)}</div>${c.quote_no ? `<div>关联报价：${esc(c.quote_no)}</div>` : ''}`
   })}
 
-  ${partyBlock(
-    {
-      tag: '甲方（委托方）',
-      rows: [
-        ['公司名称', buyer.name || c.account_name],
-        ['法定代表人', buyer.legalPerson || '—'],
-        ['联系人', buyer.contact || contact.name || '—'],
-        ['联系电话', buyer.phone || contact.phone || c.account_phone || '—'],
-        ['地址', buyer.address || c.account_address || '—'],
-      ],
-    },
-    {
-      tag: '乙方（服务方）',
-      rows: [
-        ['公司名称', sellerInfo.name],
-        ['法定代表人', sellerInfo.legalPerson || '—'],
-        ['联系人', c.owner_name || '—'],
-        ['联系电话', c.owner_phone || sellerInfo.phone || '—'],
-        ['地址', sellerInfo.address || '—'],
-      ],
-    }
-  )}
+  ${partyBlock({
+    tag: '甲方（委托方）',
+    rows: [['公司名称', buyer.name || c.account_name], ['法定代表人', buyer.legalPerson || '—'], ['联系人', buyer.contact || contact.name || '—'], ['联系电话', buyer.phone || contact.phone || c.account_phone || '—'], ['地址', buyer.address || c.account_address || '—']]
+  }, {
+    tag: '乙方（服务方）',
+    rows: [['公司名称', sellerInfo.name], ['法定代表人', sellerInfo.legalPerson || '—'], ['联系人', c.owner_name || '—'], ['联系电话', c.owner_phone || sellerInfo.phone || '—'], ['地址', sellerInfo.address || '—']]
+  })}
 
   <h2 class="sec">鉴于</h2>
   <div class="text-block">甲方拟委托乙方提供 ${esc(c.opportunity_name || c.title)} 相关产品与服务，乙方具备相应的资质与能力。双方本着平等自愿、诚实信用的原则，经友好协商，就有关事项达成如下条款，共同遵守。</div>
@@ -248,18 +230,15 @@ function renderTerms({ c, clauses, buyer, seller, contact }) {
   </div>
 
   <div class="foot">合同编号 ${esc(c.no)} · 由 MSERM CRM 依据合同模板生成 · 条款修改以最终签署版本为准</div>`;
-
   return body;
 }
-
-export function renderContractHtml(data) {
+export async function renderContractHtml(data) {
   const isTerms = data.c.kind === 'terms';
-  const body = isTerms ? renderTerms(data) : renderOrder(data);
+  const body = isTerms ? await renderTerms(data) : await renderOrder(data);
   return docShell({
     title: `${data.c.no} ${data.c.title}`,
     note: `${isTerms ? '条款合同' : '订单合同'} · ${data.c.no} · ${data.c.account_name}`,
-    body,
+    body
   });
 }
-
 export { rmbUpper };

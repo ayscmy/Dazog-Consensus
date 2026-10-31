@@ -3,6 +3,27 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：`主版本.次版本.修订号`。
 数据库结构变更一律通过 `src/db.js` 的 `migrate()` 增量执行，升级前请先备份 `data/crm.db`。
 
+## 2.8.0
+
+**双数据库：默认 SQLite，可切换 PostgreSQL（由部署者在配置里决定）**
+
+- `src/db.js` 重写为双后端，对外 API 不变（`all/one/run/tx/idOf/migrate`），业务代码无需分支
+  - **默认 SQLite**：仍用 Node 内置 `node:sqlite`，零外部依赖、单文件、开箱即用
+  - **可选 PostgreSQL**：`DB_TYPE=postgres` 时动态加载 `pg`，未安装该依赖也不影响 SQLite 模式
+  - 判定顺序：`DB_TYPE` 显式优先；未填但存在 `DATABASE_URL` 则按 PostgreSQL；否则 SQLite
+- PostgreSQL 模式下 CRM 的表建在独立 `crm` schema，与同库中销售系统的 `public` 表互不干扰
+- 查询层统一改为异步（两种后端一套调用方式），路由与服务的调用点同步补 `await`
+- 方言差异收敛为四个片段，不再散落在业务代码里：
+  - `dateCol()` / `dateLtToday()`：PostgreSQL 的 TEXT 与 DATE 比较需显式转换，SQLite 用 `date()`
+  - `isToday()`：判断时间戳是否属当天
+  - `overdueDays()`：逾期天数（两种库的日期算术不同）
+- 建表语句单一来源：SQLite 的 DDL 由 PostgreSQL 版机械转换（`SERIAL PRIMARY KEY` → `INTEGER PRIMARY KEY AUTOINCREMENT`），避免两份结构各自漂移；仍全部用 `IF NOT EXISTS`，升级旧库是幂等的
+- `src/backup.js` 支持双后端：两种库都用 `npm run backup` 导出全部 28 张表的 JSON 快照
+- 新增脚本：`scripts/migrate-from-sqlite.mjs`（把 SQLite 数据按外键顺序迁到 PostgreSQL 并重置序列）、`scripts/run-migrate.mjs`、`scripts/verify.mjs`
+- `package.json` 增加 `pg` 依赖（仅 PostgreSQL 模式需要）；移除已无用的 `@babel/standalone`
+- 修复：全新空库首次启动时内置条款模板未写入（参数传递方式与 `run()` 的 rest 参数不匹配，旧演示库因模板已存在而掩盖了该问题）
+- 修复：`node:sqlite` 对 `undefined`/布尔/`Date` 绑定极严格（`pg` 会静默转 `null`），统一在绑定层归一化，避免"可选字段不填就 500"
+
 ## 2.7.0
 
 **仓库只放 CRM；销售官网独立；新增在线测试**

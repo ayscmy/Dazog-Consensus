@@ -2,15 +2,24 @@
  * 单据统一外壳：A4 可打印页面。
  * 报价单、订单合同、条款合同共用一套排版规范，保证打印/另存 PDF 后可直接对外。
  */
-export const esc = (v) =>
-  String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-export const num = (v, digits = 2) =>
-  Number(v || 0).toLocaleString('zh-CN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
-
-export const ymd = (v) => (v ? String(v).slice(0, 10) : '—');
-
-export function docShell({ title, body, note = '', printHint = true }) {
+export const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+})[c]);
+export const num = (v, digits = 2) => Number(v || 0).toLocaleString('zh-CN', {
+  minimumFractionDigits: digits,
+  maximumFractionDigits: digits
+});
+export const ymd = v => v ? String(v).slice(0, 10) : '—';
+export function docShell({
+  title,
+  body,
+  note = '',
+  printHint = true
+}) {
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -93,7 +102,12 @@ ${body}
 }
 
 /** 单据抬头：公司信息 + 编号信息 */
-export function docHead({ company, title, subtitle, meta }) {
+export function docHead({
+  company,
+  title,
+  subtitle,
+  meta
+}) {
   return `<div class="head">
     <div>
       <div class="brand-name">${esc(company.name)}</div>
@@ -112,7 +126,7 @@ export function docHead({ company, title, subtitle, meta }) {
 
 /** 甲乙方信息栏 */
 export function partyBlock(left, right) {
-  const rows = (p) => p.rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v || '—')}</span></div>`).join('');
+  const rows = p => p.rows.map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span>${esc(v || '—')}</span></div>`).join('');
   return `<div class="parties">
     <div class="party"><div class="tag">${esc(left.tag)}</div>${rows(left)}</div>
     <div class="party"><div class="tag">${esc(right.tag)}</div>${rows(right)}</div>

@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { join, normalize, extname } from 'node:path';
 import { createReadStream } from 'node:fs';
-import { migrate, DB_FILE } from './src/db.js';
+import { migrate, DB_LABEL } from './src/db.js';
 import { setupNeeded } from './src/setup.js';
 import { dispatch, HttpError, parseCookies } from './src/http.js';
 import { getSession, createSession, COOKIE } from './src/auth.js';
@@ -15,8 +15,8 @@ const PORT = Number(process.env.PORT || 8081);
 const HOST = process.env.HOST || '0.0.0.0';
 const PUBLIC = join(process.cwd(), 'public');
 
-migrate();
-if (setupNeeded()) {
+await migrate();
+if (await setupNeeded()) {
   console.log('[init] 检测到空数据库，请打开安装向导完成初始化：/setup.html');
 }
 
@@ -173,7 +173,7 @@ server.listen(PORT, HOST, () => {
   console.log('  MSERM CRM 网络版已启动');
   console.log(`  本机访问   http://localhost:${PORT}`);
   console.log(`  局域网访问 http://<本机IP>:${PORT}`);
-  console.log(`  数据库     ${DB_FILE}`);
+  console.log(`  数据库     ${DB_LABEL}`);
   console.log('');
 });
 
