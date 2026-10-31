@@ -33,16 +33,21 @@ const NAV = [
   },
 ];
 
-const TITLES = {
-  dashboard: '工作台', approvals: '审批中心', leads: '线索', accounts: '客户',
-  opportunities: '商机', quotations: '报价', contracts: '合同', finance: '财务与回款',
-  reports: '经营报表', products: '产品库', settings: '系统设置',
-  admin: '用户与组织', search: '搜索结果',
-};
+function demoBanner() {
+  const demo = state.demo;
+  if (!demo) return '';
+  return `<div class="sb-demo">
+    <span class="demo-chip" title="官网在线测试环境：可以随意操作，数据每 ${demo.resetHours} 小时重置一次">演示环境 · ${demo.resetHours}h 重置</span>${
+      demo.home ? `<a class="demo-home" href="${esc(demo.home)}" target="_blank" rel="noopener">返回官网</a>` : ''
+    }
+  </div>`;
+}
 
-function renderSidebar() {
+function renderNav() {
   const u = state.user;
-  const groups = NAV.map((g) => {
+  const nav = document.getElementById('sbNav');
+  if (!nav) return;
+  nav.innerHTML = NAV.map((g) => {
     const items = g.items.filter((i) => {
       if (i.role && !i.role.includes(u.role)) return false;
       return !i.module || can(i.module);
@@ -57,65 +62,56 @@ function renderSidebar() {
       }).join('')}
     </div>`;
   }).join('');
+  document.querySelectorAll('#sbNav [data-nav]').forEach((b) => {
+    b.onclick = () => { location.hash = `#/${b.dataset.nav}`; };
+  });
+  highlightNav(state.route.view);
+}
 
+function renderFoot() {
+  const u = state.user;
+  const foot = document.getElementById('sbFoot');
+  if (!foot) return;
+  foot.innerHTML = `
+    <button class="user-chip" id="userChip">
+      <div class="avatar">${esc(initials(u.name))}</div>
+      <div style="flex:1;min-width:0">
+        <div class="nm">${esc(u.name)}</div>
+        <div class="rl">${esc(u.title || u.roleLabel)}</div>
+        <div class="org">${esc(u.orgName)}</div>
+      </div>
+      ${icon('chev', 13)}
+    </button>`;
+  document.getElementById('userChip').onclick = openUserMenu;
+}
+
+function renderSidebar() {
+  const u = state.user;
   document.getElementById('sidebar').innerHTML = `
     <div class="sb-brand">
       <div class="logo-mark">M</div>
       <div class="t">MSERM CRM<small>集团销售作业平台</small></div>
     </div>
-    <div class="sb-ws">
-      <span class="dot"></span>
-      <span class="nm">${esc(u.orgName)}</span>
-      <span class="rl">${esc(u.roleLabel)}</span>
-    </div>
-    <nav class="sb-nav">${groups}</nav>
-    <div class="sb-foot">
-      <button class="user-chip" id="userChip">
-        <div class="avatar">${esc(initials(u.name))}</div>
-        <div style="flex:1;min-width:0">
-          <div class="nm">${esc(u.name)}</div>
-          <div class="rl">${esc(u.title || u.roleLabel)}</div>
-        </div>
-        ${icon('chev', 13)}
-      </button>
-    </div>`;
-
-  document.querySelectorAll('[data-nav]').forEach((b) => {
-    b.onclick = () => { location.hash = `#/${b.dataset.nav}`; };
-  });
-  document.getElementById('userChip').onclick = openUserMenu;
-}
-
-function renderTopbar(view) {
-  const u = state.user;
-  const time = new Date().getHours();
-  const greet = time < 6 ? '夜深了' : time < 12 ? '早上好' : time < 18 ? '下午好' : '晚上好';
-  const demo = state.demo;
-  const demoChip = demo
-    ? `<span class="demo-chip" title="官网在线测试环境：可以随意操作，数据每 ${demo.resetHours} 小时重置一次">演示环境 · ${demo.resetHours}h 重置</span>${
-        demo.home ? `<a class="demo-home" href="${esc(demo.home)}" target="_blank" rel="noopener">返回官网</a>` : ''
-      }`
-    : '';
-  document.getElementById('topbar').innerHTML = `
-    <div class="crumb">
-      <b>${esc(TITLES[view] || '工作台')}</b>
-      <span style="color:var(--ink-4)">/</span>
-      <span>${esc(u.orgName)}</span>
-    </div>
-    ${demoChip}
-    <div class="top-search">
+    ${demoBanner()}
+    <div class="sb-search">
       ${icon('search', 13)}
       <input id="globalSearch" placeholder="搜索客户、商机、线索…" autocomplete="off" />
     </div>
-    <div class="top-actions">
-      <button class="icon-btn" id="bellBtn" title="待办">
-        ${icon('bell', 15)}${state.pending ? '<i class="dot-badge"></i>' : ''}
+    <div class="sb-actions">
+      <button class="btn btn-sm btn-primary btn-block" id="quickAdd">${icon('plus', 12)} 新建</button>
+      <button class="icon-btn" id="bellBtn" title="待办中心">
+        ${icon('bell', 15)}
+        <i class="dot-badge" id="bellBadge" ${state.pending ? '' : 'style="display:none"'}>${state.pending || ''}</i>
       </button>
-      <button class="btn btn-sm" id="quickAdd">${icon('plus', 12)} 新建</button>
-    </div>`;
+    </div>
+    <nav class="sb-nav" id="sbNav"></nav>
+    <div class="sb-foot" id="sbFoot"></div>`;
 
-  document.getElementById('bellBtn').onclick = () => { location.hash = '#/approvals'; };
+  renderNav();
+  renderFoot();
+
   document.getElementById('quickAdd').onclick = openQuickAdd;
+  document.getElementById('bellBtn').onclick = () => { location.hash = '#/approvals'; };
 
   const input = document.getElementById('globalSearch');
   input.onkeydown = (e) => {
@@ -123,7 +119,15 @@ function renderTopbar(view) {
       location.hash = `#/search?q=${encodeURIComponent(input.value.trim())}`;
     }
   };
-  void greet;
+}
+
+function syncPending() {
+  const badge = document.getElementById('bellBadge');
+  if (badge) {
+    if (state.pending) { badge.style.display = ''; badge.textContent = state.pending; }
+    else { badge.style.display = 'none'; badge.textContent = ''; }
+  }
+  renderNav();
 }
 
 function openUserMenu() {
@@ -225,7 +229,6 @@ export async function route() {
   const r = parseHash();
   state.route = r;
   highlightNav(r.view);
-  renderTopbar(r.view);
 
   const token = ++renderToken;
   const el = document.getElementById('view');
@@ -256,7 +259,6 @@ export async function route() {
 
 function renderShell() {
   renderSidebar();
-  renderTopbar(state.route.view || 'dashboard');
 }
 
 async function boot() {
@@ -277,8 +279,7 @@ async function boot() {
       const { count } = await api.get('/api/approvals/count');
       if (count !== state.pending) {
         state.pending = count;
-        renderSidebar();
-        highlightNav(state.route.view);
+        syncPending();
       }
     } catch { /* 忽略 */ }
   }, 60000);
