@@ -14,6 +14,9 @@
 - 新增 `.github/` 模板（Bug / 功能建议 / PR），与 `.gitee/` 并存
 - README 增加双仓库入口与克隆说明；官网页脚增加 GitHub 镜像链接
 - 移除 `scripts/publish-gitee.sh`，由 `scripts/publish.sh` 统一承担
+- 新增 `docs/screenshots/`：工作台、审批中心、报价、合同、单据、组织、官网等 10 张真实界面图，README 增加「界面一览」
+- 新增 `docs/diagrams/`：分层架构、请求生命周期、数据模型、审批链 4 张图（SVG 源 + PNG）
+- 新增 `docs/14-架构与开发逻辑.md`：分层职责、请求链路、数据模型、审批链，以及「加一个功能要动哪些文件」
 
 ## 2.6.0
 

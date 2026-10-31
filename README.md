@@ -97,6 +97,30 @@ npm start
 
 > 官网与主系统相互独立：官网只管会员与安装包分发，不接触你的业务数据。
 
+## 界面一览
+
+截图全部取自仓库配套的演示库（官网会员免费下载），不是设计稿。
+
+| 工作台：本月漏斗、待办、业绩排名 | 审批中心：谁的单、卡在哪一关 |
+|---|---|
+| ![工作台](docs/screenshots/02-dashboard.png) | ![审批中心](docs/screenshots/05-approvals.png) |
+
+| 报价：明细、折扣、成本毛利、客户版链接 | 合同：报价通过后一键建单，类型可选 |
+|---|---|
+| ![报价详情](docs/screenshots/04-quotation-detail.png) | ![合同列表](docs/screenshots/06-contracts.png) |
+
+| 订单合同：发票式版式，含税率税额与价税合计大写 |
+|---|
+| ![订单合同单据](docs/screenshots/07-contract-doc.png) |
+
+| 用户与组织：四级组织树、分级管理 | 登录页：演示账号可按库类型切换 |
+|---|---|
+| ![用户与组织](docs/screenshots/08-admin.png) | ![登录页](docs/screenshots/01-login.png) |
+
+| 官网：会员注册与受控下载 | 会员中心：版本、配额、下载记录 |
+|---|---|
+| ![官网首页](docs/screenshots/09-site-home.png) | ![会员中心](docs/screenshots/10-site-account.png) |
+
 ---
 
 ## 功能地图
@@ -124,6 +148,8 @@ npm start
 ---
 
 ## 技术结构
+
+![分层架构](docs/diagrams/arch-layers.png)
 
 ```
 .
@@ -155,7 +181,7 @@ npm start
 - **状态机在服务端**：报价 `draft → approved → converted`，合同 `draft → pending → active`，前端只是展示。
 - **单据是 HTML 不是 PDF**：A4 尺寸 + `@page` 打印样式，浏览器直接打印/另存 PDF，避免引入 PDF 库。
 
-详细设计见 [`docs/06-网络版架构.md`](docs/06-网络版架构.md)、[`docs/07-权限与流转矩阵.md`](docs/07-权限与流转矩阵.md)。
+分层、请求链路、数据模型、审批链的完整说明见 [`docs/14-架构与开发逻辑.md`](docs/14-架构与开发逻辑.md)；权限矩阵见 [`docs/07-权限与流转矩阵.md`](docs/07-权限与流转矩阵.md)。
 
 ---
 
@@ -251,6 +277,7 @@ server {
 | 文档 | 内容 |
 |---|---|
 | [01 设计思路](docs/01-设计思路.md) | 为什么这样拆模块 |
+| [14 架构与开发逻辑](docs/14-架构与开发逻辑.md) | **分层、请求链路、数据模型、审批链四张图 + 改功能清单** |
 | [02 数据模型](docs/02-数据模型.md) | 表结构与字段含义 |
 | [05 CRM 全流程方案](docs/05-CRM全流程方案.md) | 角色、交接点、状态机设计 |
 | [06 网络版架构](docs/06-网络版架构.md) | 请求链路、事务边界、错误处理 |
