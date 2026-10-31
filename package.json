@@ -1,6 +1,6 @@
 {
   "name": "mserm-crm",
-  "version": "2.6.1",
+  "version": "2.7.0",
   "description": "MSERM 集团 CRM —— 线索到回款全流程，Node 原生服务 + SQLite，多用户权限与审批流转",
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -22,8 +22,6 @@
   "scripts": {
     "start": "node --no-warnings server.js",
     "dev": "node --no-warnings --watch server.js",
-    "site": "node --no-warnings site/server.js",
-    "site:dev": "node --no-warnings --watch site/server.js",
     "backup": "node --no-warnings src/backup.js"
   },
   "homepage": "https://gitee.com/Emcloud_admin/mserm-crm#readme",

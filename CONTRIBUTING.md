@@ -8,8 +8,9 @@
 git clone https://gitee.com/Emcloud_admin/mserm-crm.git    # 或 https://github.com/mserm/mserm-crm.git
 cd mserm-crm
 npm start          # 主系统 http://localhost:8081
-npm run site       # 官网     http://localhost:8099
 ```
+
+> 销售官网是独立项目，不随本仓库克隆；主系统开发不需要它。
 
 - **Node.js ≥ 22.5**（依赖内置 `node:sqlite`）
 - **没有 `npm install`**：项目零第三方依赖，请勿引入 npm 包
@@ -41,12 +42,12 @@ npm run site       # 官网     http://localhost:8099
 
 **必须遵守**
 
-1. **零依赖**：只用 Node 内置模块与原生浏览器 API。需要的能力自己写（参考 `src/mailer.js`、`site/src/mail.js`）。
+1. **零依赖**：只用 Node 内置模块与原生浏览器 API。需要的能力自己写（参考 `src/mailer.js`）。
 2. **数据库改动走增量迁移**：在 `src/db.js` 的 `migrate()` 里 `addColumn()` / `create table if not exists`，**不要**修改已有的建表语句，也不要写 `drop`。
 3. **权限校验在服务端**：任何列表/详情查询都要经过 `scopeFilter()` 或 `visibleOrgs()`；字段脱敏在服务端删字段。
 4. **状态变更走状态机**：不要在前端直接改 `status`，所有状态推进都要有服务端校验与审计记录。
 5. **错误要可读**：`HttpError(400, '具体原因')`，不要抛裸 `throw new Error('error')`。
-6. **不要提交数据**：`data/`、`release/`、`site/data/`、`.env` 已被忽略，请勿强行 `git add -f`。
+6. **不要提交数据**：`data/`、`release/`、`.env` 已被忽略，请勿强行 `git add -f`。销售官网是独立项目，同样不在本仓库。
 
 **风格**
 
@@ -66,9 +67,9 @@ CRM_DB=./data/test.db PORT=8099 npm start
 # 2. 关键链路手测
 #    登录 → 建客户 → 建商机 → 建报价（带折扣）→ 提交审批 → 审批通过 → 创建合同 → 查看单据
 
-# 3. 官网链路
-npm run site
-#    注册 → 登录 → 会员中心下载 → 后台发布版本
+# 3. 演示模式（在线测试入口）
+DEMO_MODE=1 CRM_DB=./data/test.db PORT=8096 npm start
+#    打开 http://localhost:8096/demo 应直接进工作台，顶栏出现「演示环境」标识
 ```
 
 涉及权限的改动，请至少用两个不同角色的账号交叉验证（例如 `mgr01` 与 `ae01`）。

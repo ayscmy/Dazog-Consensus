@@ -21,7 +21,7 @@
 - [ ] 涉及权限的改动，用两个不同角色验证过
 - [ ] 没有引入第三方依赖（`package.json` 无 `dependencies`）
 - [ ] 数据库改动写在 `migrate()` 里，是增量且可重复执行
-- [ ] 没有提交 `data/`、`release/`、`.env`、`site/data/`
+- [ ] 没有提交 `data/`、`release/`、`.env`
 
 ### 截图 / 说明
 

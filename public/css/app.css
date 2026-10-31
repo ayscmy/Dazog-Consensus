@@ -491,3 +491,19 @@ nav.sb-nav { flex: 1; overflow-y: auto; padding-top: 2px; }
 .send-link input { flex: 1; height: 30px; font-size: 12px; font-family: Consolas, Menlo, monospace; color: var(--accent); background: var(--bg-sub); }
 .doc-mini { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .doc-mini iframe { width: 100%; height: 420px; border: 0; background: #eef1f6; }
+
+/* 演示环境标识（DEMO_MODE=1 时由 bootstrap 下发，出现在顶栏面包屑后） */
+.demo-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 9px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 500; white-space: nowrap;
+  color: #9a5b00; background: #fff7e6; border: 1px solid #fbe2b0;
+}
+.demo-chip::before {
+  content: ''; width: 5px; height: 5px; border-radius: 50%; background: #e39b1d;
+}
+.demo-home {
+  font-size: 11.5px; color: var(--ink-3); text-decoration: none;
+  margin-left: -2px;
+}
+.demo-home:hover { color: var(--ink); text-decoration: underline; }

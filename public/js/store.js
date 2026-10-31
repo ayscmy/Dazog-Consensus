@@ -4,6 +4,7 @@ export const state = {
   users: [],
   dict: {},
   pending: 0,
+  demo: null,
   route: { view: 'dashboard', id: null, query: {} },
 };
 
@@ -13,6 +14,7 @@ export function setBootstrap(data) {
   state.users = data.users || [];
   state.dict = data.dict || {};
   state.pending = data.pending || 0;
+  state.demo = data.demo || null;
   buildLabels();
 }
 

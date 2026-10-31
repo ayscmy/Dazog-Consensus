@@ -3,6 +3,7 @@ import * as A from '../auth.js';
 import { DICT } from '../dict.js';
 import { all, one } from '../db.js';
 import { pendingCount } from '../approval.js';
+import { DEMO_MODE, DEMO_RESET_HOURS, DEMO_HOME } from '../demo.js';
 
 POST(
   '/api/auth/login',
@@ -70,6 +71,7 @@ GET('/api/bootstrap', (ctx) => {
     users,
     dict: DICT,
     pending: pendingCount(u),
+    demo: DEMO_MODE ? { resetHours: DEMO_RESET_HOURS, home: DEMO_HOME } : null,
     serverTime: new Date().toISOString(),
   };
 });

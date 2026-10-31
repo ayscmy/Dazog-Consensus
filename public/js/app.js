@@ -90,12 +90,19 @@ function renderTopbar(view) {
   const u = state.user;
   const time = new Date().getHours();
   const greet = time < 6 ? '夜深了' : time < 12 ? '早上好' : time < 18 ? '下午好' : '晚上好';
+  const demo = state.demo;
+  const demoChip = demo
+    ? `<span class="demo-chip" title="官网在线测试环境：可以随意操作，数据每 ${demo.resetHours} 小时重置一次">演示环境 · ${demo.resetHours}h 重置</span>${
+        demo.home ? `<a class="demo-home" href="${esc(demo.home)}" target="_blank" rel="noopener">返回官网</a>` : ''
+      }`
+    : '';
   document.getElementById('topbar').innerHTML = `
     <div class="crumb">
       <b>${esc(TITLES[view] || '工作台')}</b>
       <span style="color:var(--ink-4)">/</span>
       <span>${esc(u.orgName)}</span>
     </div>
+    ${demoChip}
     <div class="top-search">
       ${icon('search', 13)}
       <input id="globalSearch" placeholder="搜索客户、商机、线索…" autocomplete="off" />

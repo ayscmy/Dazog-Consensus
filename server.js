@@ -6,7 +6,8 @@ import { createReadStream } from 'node:fs';
 import { migrate, DB_FILE } from './src/db.js';
 import { setupNeeded } from './src/setup.js';
 import { dispatch, HttpError, parseCookies } from './src/http.js';
-import { getSession, COOKIE } from './src/auth.js';
+import { getSession, createSession, COOKIE } from './src/auth.js';
+import { DEMO_MODE, demoAccount } from './src/demo.js';
 import { findQuoteByToken, renderSheetHtml } from './src/doc/quote-sheet.js';
 import './src/routes/index.js';
 
@@ -107,6 +108,22 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(renderSheetHtml(data, { autoPrint: url.searchParams.get('print') === '1' }));
       return;
+    }
+
+    // 官网「在线测试」：一次性签发演示账号会话，不用访客记密码
+    if (url.pathname === '/demo') {
+      const acct = setupNeeded() ? null : demoAccount();
+      if (!acct) {
+        res.writeHead(302, { Location: '/login.html?demo=off', 'Cache-Control': 'no-store' });
+        return res.end();
+      }
+      const token = createSession(acct, ip, req.headers['user-agent']);
+      res.writeHead(302, {
+        Location: '/app.html#/dashboard',
+        'Cache-Control': 'no-store',
+        'Set-Cookie': `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${4 * 3600}`,
+      });
+      return res.end();
     }
 
     if (req.url.startsWith('/api/')) {

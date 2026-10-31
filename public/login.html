@@ -122,6 +122,12 @@ const form = document.getElementById('loginForm');
 const errBox = document.getElementById('loginErr');
 const btn = document.getElementById('loginBtn');
 
+// 从 /demo 跳回来（该实例没开 DEMO_MODE=1）时给一句说明，避免以为链接坏了
+if (new URLSearchParams(location.search).get('demo') === 'off') {
+  errBox.textContent = '这个实例没有开启在线演示，请用你自己的账号登录';
+  errBox.classList.add('show');
+}
+
 form.onsubmit = async (e) => {
   e.preventDefault();
   errBox.classList.remove('show');
