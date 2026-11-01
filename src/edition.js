@@ -38,7 +38,7 @@ export const CONFIG_LIMIT = readLimit();
 export const COMMUNITY_USER_LIMIT = COMMUNITY_LIMIT;
 
 export const UPGRADE_URL =
-  process.env.CRM_UPGRADE_URL || 'https://office.aiemy.com/?from=crm#pricing';
+  process.env.CRM_UPGRADE_URL || 'https://aioffice.aiemy.com/?from=crm#pricing';
 
 /**
  * 当前生效的额度方案。异步：要读授权（可能来自数据库）。

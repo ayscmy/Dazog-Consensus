@@ -62,7 +62,7 @@
 - 额度可用 `CRM_USER_LIMIT` 覆盖（`0` = 不限），商业授权默认不限
 - 后台「用户与组织」显示 `当前/上限`，用满时顶部告警条 + 新增按钮直接弹升级说明
 - 升级弹窗含社区版/商业授权对比表与「前往官网了解授权」，跳转地址由 `CRM_UPGRADE_URL` 配置
-  （默认 `https://office.aiemy.com/?from=crm#pricing`）
+  （默认 `https://aioffice.aiemy.com/?from=crm#pricing`）
 
 ### 修复
 

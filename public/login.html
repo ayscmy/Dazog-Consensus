@@ -84,7 +84,7 @@
       <div class="trial-head">试用账号 · 需先注册会员</div>
       <div class="trial-body">
         <p>在官网免费注册会员后，系统会自动开通一个 <b>7 天</b>试用账号（独立一套数据），到期自动删除。</p>
-        <a class="trial-btn" id="trialBtn" href="https://office.aiemy.com/signup.html" target="_blank" rel="noopener">去官网注册获取</a>
+        <a class="trial-btn" id="trialBtn" href="https://aioffice.aiemy.com/signup.html" target="_blank" rel="noopener">去官网注册获取</a>
       </div>
     </div>
   </div>
@@ -96,7 +96,7 @@
 fetch('/api/setup/status').then((r) => r.json()).then((d) => {
   if (d.needed) { location.replace('/setup.html'); return; }
   // 试用账号入口：链接跟着实例配置的官网地址走
-  const base = String(d.siteUrl || 'https://office.aiemy.com').replace(/\/+$/, '');
+  const base = String(d.siteUrl || 'https://aioffice.aiemy.com').replace(/\/+$/, '');
   const btn = document.getElementById('trialBtn');
   if (btn && /^https?:\/\//.test(base)) {
     btn.href = base + '/signup.html';

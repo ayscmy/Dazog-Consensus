@@ -84,7 +84,7 @@ function statusCell(u) {
 function showUpgrade(d) {
   const limit = d.limit ?? 10;
   const current = d.current ?? limit;
-  const url = d.upgradeUrl || 'https://office.aiemy.com/?from=crm#pricing';
+  const url = d.upgradeUrl || 'https://aioffice.aiemy.com/?from=crm#pricing';
   modal({
     title: '社区版用户数已用满',
     width: 580,
