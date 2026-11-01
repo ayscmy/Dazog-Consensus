@@ -72,23 +72,39 @@
       <button class="login-btn" type="submit" id="loginBtn">登录</button>
     </form>
 
-    <div class="demo" id="demo">
+    <div class="demo open" id="demo">
       <div class="demo-head" id="demoHead">
-        <span>演示账号（点击自动填入）</span>
+        <span>演示账号 · 点击直接登录</span>
         <svg class="chev" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </div>
       <div class="demo-body" id="demoBody"></div>
+    </div>
+
+    <div class="trial" id="trial">
+      <div class="trial-head">试用账号 · 需先注册会员</div>
+      <div class="trial-body">
+        <p>在官网免费注册会员后，系统会自动开通一个 <b>7 天</b>试用账号（独立一套数据），到期自动删除。</p>
+        <a class="trial-btn" id="trialBtn" href="https://office.aiemy.com/signup.html" target="_blank" rel="noopener">去官网注册获取</a>
+      </div>
     </div>
   </div>
 </main>
 
 <script>
-// 演示账号只在「官网下载的演示库」里存在；自建库隐藏这一块
+// 演示账号只在「官网下载的演示库」里存在；自建库隐藏这一块。
+// 另一个入口是试用账号：必须先到官网注册会员，系统才会自动开通，这里只做引导。
 fetch('/api/setup/status').then((r) => r.json()).then((d) => {
   if (d.needed) { location.replace('/setup.html'); return; }
+  // 试用账号入口：链接跟着实例配置的官网地址走
+  const base = String(d.siteUrl || 'https://office.aiemy.com').replace(/\/+$/, '');
+  const btn = document.getElementById('trialBtn');
+  if (btn && /^https?:\/\//.test(base)) {
+    btn.href = base + '/signup.html';
+    btn.textContent = '去官网注册（' + base.replace(/^https?:\/\//, '') + '）';
+  }
   if (!d.demo) {
     const box = document.getElementById('demo');
-    box.outerHTML = '<div class="demo-empty">账号由管理员在「用户与组织」中创建，忘记密码请联系管理员重置。</div>';
+    box.outerHTML = '<div class="demo-empty">本实例为正式环境，没有演示账号；账号由管理员在「用户与组织」中创建，忘记密码请联系管理员重置。</div>';
   }
 }).catch(() => {});
 
@@ -110,12 +126,14 @@ body.innerHTML = ACCOUNTS.map(([u, n, r]) =>
    </button>`).join('');
 
 document.getElementById('demoHead').onclick = () => document.getElementById('demo').classList.toggle('open');
+// 点一下就登录：省掉「填入 → 再点登录」两步
 body.onclick = (e) => {
   const b = e.target.closest('.demo-item');
   if (!b) return;
   document.getElementById('username').value = b.dataset.u;
   document.getElementById('password').value = 'crm123456';
-  document.getElementById('password').focus();
+  const f = document.getElementById('loginForm');
+  if (f.requestSubmit) f.requestSubmit(); else f.dispatchEvent(new Event('submit', { cancelable: true }));
 };
 
 const form = document.getElementById('loginForm');

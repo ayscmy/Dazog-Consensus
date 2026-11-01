@@ -124,6 +124,42 @@ body.login {
   color: var(--ink-3);
 }
 
+/* 试用账号入口：常显而非折叠，因为它是「去别处拿账号」的引导 */
+.trial {
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.trial-head {
+  padding: 9px 12px;
+  background: var(--bg-sub);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.trial-body { padding: 10px 12px 12px; }
+.trial-body p {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+.trial-body b { color: var(--ink); font-weight: 600; }
+.trial-btn {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: center;
+  text-decoration: none;
+  transition: background .12s;
+}
+.trial-btn:hover { background: var(--accent-ink); }
+
 @media (max-width: 900px) {
   body.login { grid-template-columns: 1fr; }
   .brandside { display: none; }
