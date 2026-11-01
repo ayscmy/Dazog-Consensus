@@ -34,22 +34,24 @@ const MIME = {
 
 async function serveStatic(req, res, pathname) {
   if (pathname === '/') {
-    if (setupNeeded()) {
+    // setupNeeded / getSession 都是异步的，漏 await 会拿到 Promise：
+    // Promise 恒为真 → 所有请求都被重定向到安装向导
+    if (await setupNeeded()) {
       res.writeHead(302, { Location: '/setup.html' });
       return res.end();
     }
     const token = parseCookies(req.headers.cookie)[COOKIE];
-    const session = getSession(token);
+    const session = await getSession(token);
     res.writeHead(302, { Location: session ? '/app.html' : '/login.html' });
     return res.end();
   }
   // 还没初始化时，登录页直接引导到安装向导
-  if (pathname === '/login.html' && setupNeeded()) {
+  if (pathname === '/login.html' && await setupNeeded()) {
     res.writeHead(302, { Location: '/setup.html' });
     return res.end();
   }
   // 已初始化后，安装向导不再可用
-  if (pathname === '/setup.html' && !setupNeeded()) {
+  if (pathname === '/setup.html' && !(await setupNeeded())) {
     res.writeHead(302, { Location: '/login.html' });
     return res.end();
   }
@@ -113,7 +115,7 @@ const server = createServer(async (req, res) => {
 
     // 官网「在线测试」：一次性签发演示账号会话，不用访客记密码
     if (url.pathname === '/demo') {
-      const acct = setupNeeded() ? null : demoAccount();
+      const acct = (await setupNeeded()) ? null : await demoAccount();
       if (!acct) {
         res.writeHead(302, { Location: '/login.html?demo=off', 'Cache-Control': 'no-store' });
         return res.end();
