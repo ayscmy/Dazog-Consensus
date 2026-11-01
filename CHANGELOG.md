@@ -3,6 +3,42 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：`主版本.次版本.修订号`。
 数据库结构变更一律通过 `src/db.js` 的 `migrate()` 增量执行，升级前请先备份 `data/crm.db`。
 
+## 2.9.0
+
+**线索 API 授权管理：新增授权域名，权限收敛到超级管理员；许可证变更为个人学习许可**
+
+### 授权域名（新）
+
+- `api_clients` 新增 `domain_whitelist` 字段；老库由新增的 `ensureColumns()` 自动补列
+  （SQLite 走 `PRAGMA table_info` 探测，PostgreSQL 走 `information_schema`），无需手工迁移
+- 鉴权从三道闸门变四道：密钥 → 来源 IP → **来源域名** → 限额
+- 域名匹配规则：
+  - `api.partner.com` 只匹配自身；`*.partner.com` 匹配 base 与任意层级子域；`*` 不限
+  - 来源取自 `Origin`，缺失时退回 `Referer` 取域名
+  - **不用 `Host` 兜底**：`Host` 是「打到 CRM 身上的域名」，不是调用方的域名
+- 空名单语义与 IP **故意相反**：IP 空 = 全拒绝；域名空 = **不校验**。
+  原因是服务器对服务器调用通常不带 `Origin`，若空也拒绝会把所有既有纯 IP 接入方一次性打死
+- 开放域名后，请求缺 `Origin`/`Referer` 会被明确拒绝并提示如何补齐，而不是笼统 403
+- 管理端连通性自检支持传入来源域名，返回 IP 与域名两段结论
+
+### 权限
+
+- 授权管理（开通 / 编辑 / 重置 / 撤销 / 自检 / 日志）**仅超级管理员**可操作：
+  后端 `requireAdmin` 拦截，销售总监与销售经理虽然有 `admin` 模块（能管人与组织），
+  但看不到该页签，直接调接口也会 403
+
+### 修复
+
+- `GET /api/admin/api-clients` 用 `map(async …)` 得到 Promise 数组，序列化后每行都是 `{}`，
+  导致接入方列表空白、启用数恒为 0。改为 `Promise.all` 收齐
+
+### 许可
+
+- `LICENSE` 由 AGPL-3.0 变更为 **AIEMY 个人学习许可**：版权归 AIEMY 所有，
+  仅限个人学习、研究与非营利性教学等非商业用途，禁止任何商业使用
+- 同步更新 `README` / `CONTRIBUTING` / `docs/13` 的授权表述
+- 登录页、安装向导、应用外壳增加版权脚注
+
 ## 2.8.0
 
 **双数据库：默认 SQLite，可切换 PostgreSQL（由部署者在配置里决定）**

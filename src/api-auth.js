@@ -5,13 +5,20 @@ import { HttpError } from './http.js';
 /**
  * 线索 API 的接入鉴权。
  *
- * 三件事必须同时成立才放行：
+ * 四件事必须同时成立才放行：
  *   1. 密钥对得上（只存 sha256，明文只在开通/重置时给一次）
  *   2. 来源 IP 在授权名单内（支持单 IP、网段、通配）
- *   3. 没超出速率与日配额，且没停用 / 没过期
+ *   3. 来源域名在授权名单内（配了才校验，见下）
+ *   4. 没超出速率与日配额，且没停用 / 没过期
  *
  * 任何一条不满足都直接拒绝，并把原因写清楚——对外接的人比我们更想知道
  * 是「密钥错了」还是「IP 没加白名单」，含糊的报错只会让两边来回扯皮。
+ *
+ * 注意 IP 与域名的「空名单」语义**故意相反**：
+ *   - IP 空名单 = 全拒绝。IP 是服务器固有的，配不上就是没配好，宁可拦住。
+ *   - 域名空名单 = 不校验。服务器对服务器调用通常不带 Origin / Referer，
+ *     空名单若按「全拒绝」处理，会把所有既有的纯 IP 接入方一次性打死；
+ *     一旦填了域名，就变成硬性校验，缺头或不在名单内都拒绝。
  */
 
 export const SCOPES = [{
@@ -95,6 +102,60 @@ export function ipAllowed(ip, whitelist) {
   return rules.some(r => matchRule(normalizeIp(ip), r));
 }
 
+/* ---------------- 域名匹配 ---------------- */
+
+/**
+ * 归一化域名：去协议、去路径、去端口、去首尾点、转小写。
+ * `https://API.Example.com:8443/x` → `api.example.com`
+ */
+export function normalizeDomain(raw) {
+  let d = String(raw || '').trim().toLowerCase();
+  if (!d || d === 'null') return '';
+  d = d.replace(/^[a-z][a-z0-9+.-]*:\/\//, '');
+  d = d.split('/')[0].split('?')[0].split('#')[0];
+  d = d.replace(/:\d+$/, '');
+  d = d.replace(/^\.+|\.+$/g, '');
+  return d;
+}
+export function parseDomains(text) {
+  return String(text || '').split(/[\s,;、]+/).map(s => normalizeDomain(s)).filter(Boolean);
+}
+/**
+ * 单条域名规则匹配：
+ *   `*`              放行任意域名
+ *   `*.example.com`  匹配 example.com 及其任意层级子域
+ *   `example.com`    只匹配自身（不含子域，要含子域请加 *.）
+ */
+export function matchDomainRule(host, rule) {
+  const h = normalizeDomain(host);
+  const r = normalizeDomain(rule);
+  if (!h || !r) return false;
+  if (r === '*') return true;
+  if (r.startsWith('*.')) {
+    const base = r.slice(2);
+    return h === base || h.endsWith(`.${base}`);
+  }
+  return h === r;
+}
+/** 空名单 = 不校验（见文件头说明） */
+export function domainAllowed(host, whitelist) {
+  const rules = parseDomains(whitelist);
+  if (!rules.length) return true;
+  return rules.some(r => matchDomainRule(host, r));
+}
+/**
+ * 从请求头推断调用方来源域名。
+ * 只认调用方**主动声明**的 Origin / Referer——Host 是「打到我们身上的域名」，
+ * 不是调用方自己的域名，拿它凑数只会让人误判「明明配了却过不去」。
+ */
+export function requestDomain(req) {
+  const origin = String(req.headers.origin || '').trim();
+  if (origin && origin !== 'null') return normalizeDomain(origin);
+  const referer = String(req.headers.referer || '').trim();
+  if (referer) return normalizeDomain(referer);
+  return '';
+}
+
 /* ---------------- 速率限制（进程内滑窗） ---------------- */
 
 const buckets = new Map();
@@ -162,6 +223,25 @@ export async function authenticateApi({
       hint: '请让管理员在「用户与组织 → API 接入」里把该 IP 加入白名单'
     });
   }
+  // 域名是「配了才校验」：没配就跳过，配了就必须命中
+  const domainRules = parseDomains(row.domain_whitelist);
+  let host = '';
+  if (domainRules.length) {
+    host = requestDomain(req);
+    if (!host) {
+      throw new HttpError(403, '该接入方已配置授权域名，但请求没有声明来源（缺少 Origin 或 Referer 头）', {
+        domains: domainRules,
+        hint: '浏览器调用会自动带 Origin；服务器调用请显式传 Origin: https://your-domain.com，或让管理员清空域名授权改用纯 IP 校验'
+      });
+    }
+    if (!domainRules.some(r => matchDomainRule(host, r))) {
+      throw new HttpError(403, `来源域名 ${host} 不在授权名单内`, {
+        domain: host,
+        domains: domainRules,
+        hint: '请让管理员在「用户与组织 → API 接入」里把该域名加入白名单（子域需写成 *.example.com）'
+      });
+    }
+  }
   const quota = Number(row.daily_quota || 0);
   const used = await usedToday(row.id);
   if (quota > 0 && used >= quota) {
@@ -182,8 +262,10 @@ export async function authenticateApi({
   return {
     ...row,
     ip: addr,
+    domain: host,
     scopeList: parseScopes(row.scopes),
     ipList: rules,
+    domainList: domainRules,
     usedToday: used
   };
 }
@@ -234,11 +316,16 @@ export async function auditApi(ctx, action, targetType, targetId, detail) {
   } catch {/* 审计失败不影响业务 */}
 }
 
-/** 管理端的连通性自检：不校验密钥，只回答「这个 IP 现在能不能进」 */
-export async function selfCheck(client, ipRaw) {
+/** 管理端的连通性自检：不校验密钥，只回答「这个 IP / 域名现在能不能进」 */
+export async function selfCheck(client, ipRaw, domainRaw) {
   const ip = normalizeIp(ipRaw);
   const rules = parseWhitelist(client.ip_whitelist);
   const matched = rules.find(r => matchRule(ip, r)) || null;
+  const domainRules = parseDomains(client.domain_whitelist);
+  const host = normalizeDomain(domainRaw);
+  const domainMatched = domainRules.length
+    ? (host ? domainRules.find(r => matchDomainRule(host, r)) || null : null)
+    : '*'; // 空名单 = 不校验
   const used = await usedToday(client.id);
   const quota = Number(client.daily_quota || 0);
   const expired = Boolean(client.expire_at && String(client.expire_at).slice(0, 10) < today());
@@ -246,12 +333,19 @@ export async function selfCheck(client, ipRaw) {
   if (client.status !== 'active' || client.revoked_at) reasons.push('密钥已停用或已撤销');
   if (expired) reasons.push(`授权已于 ${String(client.expire_at).slice(0, 10)} 到期`);
   if (!rules.length) reasons.push('未配置授权 IP（空名单 = 全部拒绝）');else if (!matched) reasons.push(`IP ${ip} 未命中任何一条白名单规则`);
+  if (domainRules.length) {
+    if (!host) reasons.push('已配置授权域名，但自检未填写来源域名');else if (!domainMatched) reasons.push(`域名 ${host} 未命中任何一条授权域名规则`);
+  }
   if (quota > 0 && used >= quota) reasons.push(`今日调用已达配额 ${quota} 次`);
   return {
     ip,
     allowed: reasons.length === 0,
     matched,
     whitelist: rules,
+    domain: host,
+    domain_matched: domainMatched,
+    domains: domainRules,
+    domain_required: domainRules.length > 0,
     status: client.status,
     revoked: Boolean(client.revoked_at),
     expire_at: client.expire_at || null,

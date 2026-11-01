@@ -1,14 +1,17 @@
 import { GET, POST, PATCH, DELETE, bad, notFound, denied } from '../http.js';
 import { all, one, run, nowIso, idOf, isToday } from '../db.js';
 import { DEMO_MODE } from '../demo.js';
-import { SCOPES, issueKey, parseWhitelist, selfCheck, normalizeIp } from '../api-auth.js';
+import { SCOPES, issueKey, parseWhitelist, parseDomains, normalizeDomain, selfCheck, normalizeIp } from '../api-auth.js';
 
 /**
  * 线索 API 的开通与授权（只对系统管理员开放）。
  *
  * 「开通」= 建一个接入方，拿到一对密钥；
- * 「授权」= 指定它能读能写、能调多少、从哪些 IP 来、什么时候到期。
+ * 「授权」= 指定它能读能写、能调多少、从哪些 IP / 域名来、什么时候到期。
  * 密钥明文只在开通和重置时返回一次，库里只有 sha256，管理员自己也没法再翻出来。
+ *
+ * 只有超级管理员（role = admin）能进：销售总监、销售经理虽然有 admin 模块，
+ * 但那是管人和组织的，不是管对外接口的——这条路一旦放开，等于让他们能给外部系统开写库权限。
  */
 
 function requireAdmin(ctx) {
@@ -51,6 +54,25 @@ function parseScopesInput(v) {
   const valid = list.filter(s => SCOPES.some(x => x.key === s));
   if (!valid.length) throw bad('请至少勾选一项接口权限');
   return valid;
+}
+/**
+ * 校验授权域名。
+ * 允许的写法：`example.com` / `*.example.com` / `*`。
+ * 不允许裸后缀（`com`）和中间通配（`api.*.com`）——那两类规则要么过宽、要么没人看得懂。
+ */
+const DOMAIN_RE = /^(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+function validateDomains(text) {
+  const list = parseDomains(text);
+  for (const r of list) {
+    if (r === '*') continue;
+    if (!DOMAIN_RE.test(r)) {
+      throw bad(`域名格式不正确：${r}（示例：api.example.com / *.example.com / *）`);
+    }
+    if (r.startsWith('*.') && r.slice(2).split('.').length < 2) {
+      throw bad(`通配域名至少要有两段：${r}`);
+    }
+  }
+  return list;
 }
 function baseUrlOf(ctx) {
   const host = ctx.req.headers['x-forwarded-host'] || ctx.req.headers.host || `localhost:${process.env.PORT || 8081}`;
@@ -151,6 +173,8 @@ function clientRow(c) {
     })(),
     ip_whitelist: c.ip_whitelist || '',
     ip_list: parseWhitelist(c.ip_whitelist),
+    domain_whitelist: c.domain_whitelist || '',
+    domain_list: parseDomains(c.domain_whitelist),
     rate_limit: c.rate_limit,
     daily_quota: c.daily_quota,
     expire_at: c.expire_at,
@@ -178,12 +202,15 @@ async function loadClient(id) {
 
 GET('/api/admin/api-clients', async ctx => {
   requireAdmin(ctx);
-  const rows = (await all(`${SELECT_CLIENT} order by c.id desc`)).map(async c => ({
+  // 注意：每行要额外查 3 个统计，必须 Promise.all 收齐；
+  // 直接 map(async …) 得到的是 Promise 数组，序列化成 JSON 会变成一堆 {}
+  const list = await all(`${SELECT_CLIENT} order by c.id desc`);
+  const rows = await Promise.all(list.map(async c => ({
     ...clientRow(c),
     today_calls: Number((await one(`select count(*) n from api_logs where client_id = ? and ${isToday('created_at')}`, c.id)).n || 0),
     total_calls: Number((await one('select count(*) n from api_logs where client_id = ?', c.id)).n || 0),
     last_status: (await one('select status from api_logs where client_id = ? order by id desc limit 1', c.id))?.status || null
-  }));
+  })));
   const todayTotal = Number((await one(`select count(*) n from api_logs where ${isToday('created_at')}`)).n || 0);
   const todayFail = Number((await one(`select count(*) n from api_logs where ${isToday('created_at')} and status >= 400`)).n || 0);
   return {
@@ -219,14 +246,15 @@ POST('/api/admin/api-clients', async ctx => {
   if (!owner) throw bad('默认线索负责人不存在或已停用');
   const scopes = parseScopesInput(b.scopes);
   const ipList = validateRules(b.ip_whitelist);
+  const domainList = validateDomains(b.domain_whitelist);
   const rateLimit = intOr(b.rate_limit, 60, 0, 6000);
   const dailyQuota = intOr(b.daily_quota, 5000, 0, 1000000);
   const expireAt = b.expire_at ? String(b.expire_at).slice(0, 10) : null;
   if (expireAt && !/^\d{4}-\d{2}-\d{2}$/.test(expireAt)) throw bad('到期日需要是 YYYY-MM-DD');
   const k = issueKey();
-  const r = await run(`insert into api_clients(name,client_id,key_prefix,key_hash,status,scopes,ip_whitelist,
+  const r = await run(`insert into api_clients(name,client_id,key_prefix,key_hash,status,scopes,ip_whitelist,domain_whitelist,
        rate_limit,daily_quota,expire_at,org_id,owner_id,remark,created_by,created_at)
-     values(?,?,?,?,'active',?,?,?,?,?,?,?,?,?,?)`, name, k.clientId, k.prefix, k.hash, JSON.stringify(scopes), ipList.join('\n'), rateLimit, dailyQuota, expireAt, owner.org_id, owner.id, String(b.remark || '').slice(0, 300) || null, ctx.user.id, nowIso());
+     values(?,?,?,?,'active',?,?,?,?,?,?,?,?,?,?,?)`, name, k.clientId, k.prefix, k.hash, JSON.stringify(scopes), ipList.join('\n'), domainList.join('\n'), rateLimit, dailyQuota, expireAt, owner.org_id, owner.id, String(b.remark || '').slice(0, 300) || null, ctx.user.id, nowIso());
   return {
     ok: true,
     id: idOf(r),
@@ -236,6 +264,7 @@ POST('/api/admin/api-clients', async ctx => {
     key_prefix: k.prefix,
     scopes,
     ip_list: ipList,
+    domain_list: domainList,
     base_url: baseUrlOf(ctx),
     message: '密钥只显示这一次，请立即复制保存'
   };
@@ -269,6 +298,10 @@ PATCH('/api/admin/api-clients/:id', async ctx => {
   if (b.ip_whitelist !== undefined) {
     sets.push('ip_whitelist = ?');
     params.push(validateRules(b.ip_whitelist).join('\n'));
+  }
+  if (b.domain_whitelist !== undefined) {
+    sets.push('domain_whitelist = ?');
+    params.push(validateDomains(b.domain_whitelist).join('\n'));
   }
   if (b.rate_limit !== undefined) {
     sets.push('rate_limit = ?');
@@ -342,6 +375,8 @@ POST('/api/admin/api-clients/:id/selfcheck', async ctx => {
   requireAdmin(ctx);
   const c = await loadClient(ctx.params.id);
   const ip = normalizeIp(ctx.body && ctx.body.ip || ctx.ip);
+  // 域名只认显式传入：自检的是「对方」能不能进，用管理员自己浏览器的 Origin 冒充只会误导
+  const domain = normalizeDomain(ctx.body && ctx.body.domain || '');
   return {
     ok: true,
     client: {
@@ -349,7 +384,7 @@ POST('/api/admin/api-clients/:id/selfcheck', async ctx => {
       name: c.name,
       client_id: c.client_id
     },
-    result: await selfCheck(c, ip)
+    result: await selfCheck(c, ip, domain)
   };
 });
 GET('/api/admin/api-logs', async ctx => {

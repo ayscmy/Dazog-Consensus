@@ -483,6 +483,16 @@ async function renderApi(panel, ctx, el) {
     return `<span class="mono">${first}</span>${more}`;
   };
 
+  // 域名是「配了才校验」：空 = 不限制（服务器对服务器调用通常没有 Origin）
+  const domainCell = (c) => {
+    const list = c.domain_list || [];
+    if (!list.length) return `<span class="badge">不校验</span>`;
+    if (list.includes('*')) return `<span class="badge badge-amber">不限（*）</span>`;
+    const first = esc(list[0]);
+    const more = list.length > 1 ? `<div class="cell-sub" title="${esc(list.join('\n'))}">等 ${list.length} 条规则</div>` : '';
+    return `<span class="mono">${first}</span>${more}`;
+  };
+
   panel.innerHTML = `
     ${demo ? `<div class="notice red" style="margin-bottom:12px">${icon('warn', 14)}
       <div><b>演示环境只读：</b>开通与修改 API 接入已禁用，请在正式部署的实例里操作。</div></div>` : ''}
@@ -503,7 +513,8 @@ async function renderApi(panel, ctx, el) {
         <div class="tablewrap">
           <table class="grid">
             <thead><tr>
-              <th style="min-width:150px">接入方</th><th>状态</th><th style="min-width:150px">授权 IP</th>
+              <th style="min-width:150px">接入方</th><th>状态</th><th style="min-width:140px">授权 IP</th>
+              <th style="min-width:130px">授权域名</th>
               <th>权限</th><th>限额</th><th class="num">今日</th><th style="min-width:120px">最近调用</th><th></th>
             </tr></thead>
             <tbody>
@@ -514,6 +525,7 @@ async function renderApi(panel, ctx, el) {
                 </td>
                 <td>${clientStatus(c)}</td>
                 <td>${ipCell(c)}</td>
+                <td>${domainCell(c)}</td>
                 <td>${(c.scopes || []).map((s) => badge(SCOPE_LABEL[s] || s, 'violet')).join(' ') || '<span class="muted">—</span>'}</td>
                 <td class="muted" style="font-size:11.5px">
                   ${c.rate_limit ? `${c.rate_limit}/分钟` : '不限速'}<br>
@@ -534,7 +546,7 @@ async function renderApi(panel, ctx, el) {
                     : (c.status === 'disabled' ? `<button class="btn btn-sm" data-toggle="${c.id}">启用</button>` : '')}
                   ${c.status === 'revoked' ? '' : `<button class="btn btn-sm btn-danger" data-revoke="${c.id}">撤销</button>`}
                 </td>
-              </tr>`).join('') || `<tr><td colspan="8"><div class="empty" style="padding:34px">
+              </tr>`).join('') || `<tr><td colspan="9"><div class="empty" style="padding:34px">
                 还没有接入方。点右上角「开通 API 接入」，给官网表单、企业微信或第三方系统发一把钥匙。
               </div></td></tr>`}
             </tbody>
@@ -544,7 +556,7 @@ async function renderApi(panel, ctx, el) {
     </div>
 
     <div class="panel" style="margin-top:14px">
-      <div class="panel-head"><h3>接入方式</h3><span class="muted" style="font-size:12px">三件事同时满足才放行：密钥对得上 · IP 在白名单 · 没超限</span></div>
+      <div class="panel-head"><h3>接入方式</h3><span class="muted" style="font-size:12px">四件事同时满足才放行：密钥对得上 · IP 在白名单 · 域名对得上（配了才校验）· 没超限</span></div>
       <div class="panel-body">
         <div class="api-heads">
           <div class="api-head-card">
@@ -556,7 +568,11 @@ async function renderApi(panel, ctx, el) {
             <div class="m">只有名单内的来源 IP 能进。支持单 IP、网段 <code>10.0.0.0/16</code>、通配 <code>192.168.1.*</code>；名单为空视为全部拒绝。</div>
           </div>
           <div class="api-head-card">
-            <div class="t">3 · 限额</div>
+            <div class="t">3 · 域名授权</div>
+            <div class="m">校验请求头 <code>Origin</code> / <code>Referer</code> 的域名。支持 <code>api.example.com</code>、<code>*.example.com</code>；<b>留空 = 不校验</b>（服务器调用一般不带这两个头）。</div>
+          </div>
+          <div class="api-head-card">
+            <div class="t">4 · 限额</div>
             <div class="m">按接入方单独计：每分钟速率 + 每日配额，超了返回 <code>429</code>，第二天自动恢复。</div>
           </div>
         </div>
@@ -699,6 +715,19 @@ function openClientForm(c, d, ctx) {
         </div>
       </div>
 
+      <div class="field" style="margin-top:12px">
+        <label>授权域名白名单</label>
+        <textarea class="textarea" name="domain_whitelist" style="font-family:var(--mono);font-size:12px;height:76px"
+          placeholder="api.partner.com&#10;*.partner.com">${esc(c?.domain_whitelist || '')}</textarea>
+        <div class="hint">每行一条：精确域名 <code>api.partner.com</code>、含子域 <code>*.partner.com</code>、
+          <code>*</code> = 不限。<b>留空 = 不校验域名</b>（服务器对服务器调用通常不带 <code>Origin</code> / <code>Referer</code>）；
+          一旦填写，请求缺这两个头或域名不匹配都会被拒绝。</div>
+        <div class="row" style="margin-top:2px">
+          <button class="btn btn-sm" data-fill-domain>填入当前域名（${esc(location.hostname)}）</button>
+          <span class="muted" style="font-size:11.5px">浏览器端调用可直接用它；服务器端调用请填对方实际声明的域名</span>
+        </div>
+      </div>
+
       <div class="formgrid" style="margin-top:12px">
         ${field('每分钟上限', 'rate_limit', { type: 'number', value: c?.rate_limit ?? 60, hint: '0 = 不限速' })}
         ${field('每日配额', 'daily_quota', { type: 'number', value: c?.daily_quota ?? 5000, hint: '0 = 不限量' })}
@@ -714,6 +743,12 @@ function openClientForm(c, d, ctx) {
         const cur = ta.value.trim();
         ta.value = cur ? `${cur}\n${d.meta.ip}` : d.meta.ip;
       };
+      const fillDomain = root.querySelector('[data-fill-domain]');
+      if (fillDomain) fillDomain.onclick = () => {
+        const ta = root.querySelector('[name="domain_whitelist"]');
+        const cur = ta.value.trim();
+        ta.value = cur ? `${cur}\n${location.hostname}` : location.hostname;
+      };
       root.querySelector('[data-ok]').onclick = async () => {
         const fd = formData(root);
         const picked = [...root.querySelectorAll('[data-scope]:checked')].map((x) => x.value);
@@ -724,6 +759,7 @@ function openClientForm(c, d, ctx) {
           owner_id: Number(fd.owner_id),
           scopes: picked,
           ip_whitelist: fd.ip_whitelist,
+          domain_whitelist: fd.domain_whitelist || '',
           rate_limit: fd.rate_limit === null ? 0 : Number(fd.rate_limit),
           daily_quota: fd.daily_quota === null ? 0 : Number(fd.daily_quota),
           expire_at: fd.expire_at || null,
@@ -761,7 +797,9 @@ function showKey(r, ctx) {
         <label>API 密钥</label>
         <div class="api-key"><code id="keyText">${esc(r.key)}</code>
           <button class="btn btn-sm" data-copy>复制</button></div>
-        <div class="hint">接入方 ${esc(r.name)} · Client ID <span class="mono">${esc(r.client_id)}</span> · 授权 IP ${esc((r.ip_list || []).join(' , '))}</div>
+        <div class="hint">接入方 ${esc(r.name)} · Client ID <span class="mono">${esc(r.client_id)}</span> ·
+          授权 IP ${esc((r.ip_list || []).join(' , '))} ·
+          授权域名 ${esc((r.domain_list || []).join(' , ') || '不校验')}</div>
       </div>
       <div class="field" style="margin-top:12px">
         <label>先用这条命令验证连通性</label>
@@ -800,24 +838,30 @@ function revokeClient(c, ctx) {
   }).catch((e) => toast(e.message, 'err'));
 }
 
-async function selfCheckClient(c, ctx) {
+async function selfCheckClient(c, ctx, domain) {
   let r;
   try {
-    r = await api.post(`/api/admin/api-clients/${c.id}/selfcheck`, {});
+    r = await api.post(`/api/admin/api-clients/${c.id}/selfcheck`, domain ? { domain } : {});
   } catch (e) { return toast(e.message, 'err'); }
   const d = r.result;
   const q = d.quota;
+  // 配了域名却没指定，只是「没测到」，不是真的拒绝——给个一键重测
+  const needDomain = d.domain_required && !d.domain;
   modal({
     title: `连通性自检 · ${c.name}`,
     width: 560,
     body: `<div class="notice ${d.allowed ? 'blue' : 'red'}">${icon(d.allowed ? 'check' : 'warn', 14)}
         <div>${d.allowed
-          ? `来源 IP <b>${esc(d.ip)}</b> 命中规则 <b>${esc(d.matched || '')}</b>，可以通过授权校验。`
-          : `来源 IP <b>${esc(d.ip)}</b> 会被拒绝——但这里只校验 IP 与状态，密钥本身仍以实际请求为准。`}</div>
+          ? `来源 IP <b>${esc(d.ip)}</b> 命中规则 <b>${esc(d.matched || '')}</b>${d.domain_required ? `，域名 <b>${esc(d.domain)}</b> 也在名单内` : ''}，可以通过授权校验。`
+          : needDomain
+            ? `来源 IP <b>${esc(d.ip)}</b> 的判断已完成；该接入方还配了授权域名，需要指定域名才能给出完整结论。`
+            : `来源 IP <b>${esc(d.ip)}</b> 会被拒绝——但这里只校验来源与状态，密钥本身仍以实际请求为准。`}</div>
       </div>
       <div class="fields" style="margin-top:12px">
         <div class="fld"><div class="k">来源 IP</div><div class="v mono">${esc(d.ip)}</div></div>
-        <div class="fld"><div class="k">白名单</div><div class="v mono">${esc(d.whitelist.join(' , ') || '—')}</div></div>
+        <div class="fld"><div class="k">IP 白名单</div><div class="v mono">${esc(d.whitelist.join(' , ') || '—')}</div></div>
+        <div class="fld"><div class="k">来源域名</div><div class="v mono">${esc(d.domain || '未指定')}</div></div>
+        <div class="fld"><div class="k">域名白名单</div><div class="v mono">${esc((d.domains || []).join(' , ') || '不校验')}</div></div>
         <div class="fld"><div class="k">状态</div><div class="v">${d.status === 'active' && !d.revoked ? '启用中' : '已停用 / 已撤销'}</div></div>
         <div class="fld"><div class="k">今日配额</div><div class="v">${q.limit ? `${q.used} / ${q.limit}` : '不限'}</div></div>
         <div class="fld"><div class="k">速率上限</div><div class="v">${d.rate_limit ? `${d.rate_limit} 次/分钟` : '不限'}</div></div>
@@ -827,10 +871,15 @@ async function selfCheckClient(c, ctx) {
         <b>不通过原因</b><ul style="margin:6px 0 0;padding-left:18px;line-height:1.8">
           ${d.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div></div>` : ''}
       <div class="muted" style="font-size:11.5px;margin-top:10px">
-        建议让对方从<b>它自己的服务器</b>跑一次 <code>/api/v1/ping</code>，那才是真实的出口 IP。
+        建议让对方从<b>它自己的服务器</b>跑一次 <code>/api/v1/ping</code>，那才是真实的出口 IP 与来源域名。
       </div>`,
-    footer: `<button class="btn btn-primary" data-c>知道了</button>`,
-    onMount(root, close) { root.querySelector('[data-c]').onclick = close; },
+    footer: `<button class="btn btn-primary" data-c>知道了</button>
+      ${needDomain ? `<button class="btn" data-retest>以当前域名（${esc(location.hostname)}）重测</button>` : ''}`,
+    onMount(root, close) {
+      root.querySelector('[data-c]').onclick = close;
+      const b = root.querySelector('[data-retest]');
+      if (b) b.onclick = () => { close(); selfCheckClient(c, ctx, location.hostname); };
+    },
   });
 }
 

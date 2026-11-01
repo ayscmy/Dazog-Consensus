@@ -554,3 +554,18 @@ nav.sb-nav { flex: 1; overflow-y: auto; padding-top: 2px; }
   .api-heads { grid-template-columns: 1fr; }
   .api-scopes { grid-template-columns: 1fr; }
 }
+
+/* 版权脚注：固定右下角，不参与布局、不拦点击（个人学习许可声明） */
+.app-foot {
+  position: fixed;
+  right: 12px;
+  bottom: 6px;
+  z-index: 5;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #9aa0a6;
+  opacity: .72;
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: .02em;
+}

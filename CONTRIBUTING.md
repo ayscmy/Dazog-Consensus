@@ -82,4 +82,5 @@ DEMO_MODE=1 CRM_DB=./data/test.db PORT=8096 npm start
 
 ## 七、许可证
 
-你的贡献将以 [AGPL-3.0](LICENSE) 发布。提交 PR 即表示同意这一授权。
+你的贡献将以 [AIEMY 个人学习许可](LICENSE) 发布（版权归 AIEMY 所有，仅限个人学习与研究，禁止商业使用）。
+提交 PR 即表示同意这一授权，并确认你有权提交该代码。

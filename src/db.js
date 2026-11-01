@@ -692,6 +692,8 @@ CREATE TABLE IF NOT EXISTS api_clients (
   status       TEXT NOT NULL DEFAULT 'active',
   scopes       TEXT NOT NULL DEFAULT '["lead:read","lead:write"]',
   ip_whitelist TEXT NOT NULL DEFAULT '',
+  -- 授权域名：与 IP 白名单互补。留空 = 不校验来源域名（服务器对服务器调用通常没有 Origin/Referer）
+  domain_whitelist TEXT NOT NULL DEFAULT '',
   rate_limit   INTEGER NOT NULL DEFAULT 60,
   daily_quota  INTEGER NOT NULL DEFAULT 5000,
   expire_at    TEXT,
@@ -752,6 +754,32 @@ const SQLITE_DDL = SCHEMA_DDL.replace(/SERIAL PRIMARY KEY/gi, 'INTEGER PRIMARY K
 export async function migrate() {
   if (DB_ENGINE === 'postgres') await migratePg();
   else await migrateSqlite();
+  await ensureColumns();
+}
+
+/**
+ * 轻量列迁移。
+ *
+ * DDL 只有 CREATE TABLE IF NOT EXISTS，对已经存在的老库来说，新增列不会自动出现，
+ * 而 `select *` 拿不到列会让鉴权静默退化成「没有这条规则」——所以老库必须补列。
+ * 这里只做「加列」；改类型、删列涉及数据搬迁，一律人工评估，不放进自动迁移。
+ */
+const COLUMN_PATCHES = [
+  ['api_clients', 'domain_whitelist', "TEXT NOT NULL DEFAULT ''"],
+];
+
+async function ensureColumns() {
+  for (const [table, column, ddl] of COLUMN_PATCHES) {
+    const exists = DB_ENGINE === 'postgres'
+      ? Boolean(await one(
+          'select 1 from information_schema.columns where table_schema = ? and table_name = ? and column_name = ?',
+          SCHEMA, table, column
+        ))
+      : (await all(`PRAGMA table_info(${table})`)).some((r) => r.name === column);
+    if (exists) continue;
+    await run(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+    console.log(`[db] 已为老库补充列 ${table}.${column}`);
+  }
 }
 
 async function migratePg() {

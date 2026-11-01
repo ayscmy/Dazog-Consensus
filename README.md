@@ -5,7 +5,7 @@
 
 **Node 22 · 默认内置 SQLite（零外部依赖）· 可选 PostgreSQL · 无构建步骤 · 一条命令启动**
 
-[![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Personal%20Learning%20Only-orange.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.5-brightgreen.svg)](https://nodejs.org)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-success.svg)](package.json)
 
@@ -319,12 +319,29 @@ server {
 
 ---
 
-## 许可证
+## 版权与许可
 
-代码以 [AGPL-3.0](LICENSE) 发布。
+**Copyright © 2026 AIEMY. All rights reserved.**
+**版权所有 © 2026 AIEMY，保留所有权利。**
 
-- **内部使用**：不受限制，可自由修改与部署。
-- **对外提供 SaaS**：需要按 AGPL 开放你修改后的源码。
-- **闭源分发 / 去除开源义务**：需要商业授权，请通过仓库 Issue 或官网联系我们。
+本项目是**源码开放**项目，但**不是自由许可**项目。完整条款见 [LICENSE](LICENSE)。
 
-Copyright © 2026 MSERM.
+| | 是否允许 |
+|---|---|
+| 下载、安装、运行 | ✅ |
+| 阅读、学习、研究源码 | ✅ |
+| 为个人学习修改并在本地运行 | ✅ |
+| 非营利教学引用（注明出处） | ✅ |
+| **任何商业用途** | ❌ 需事先取得书面商业授权 |
+| 销售 / 出租 / SaaS / 代运维 / 付费支持 | ❌ |
+| 集成进商业产品或交付给客户的项目 | ❌ |
+| 企业内部用于实际生产经营 | ❌ |
+| 移除或篡改版权声明 | ❌ |
+
+**商用授权**：如需商业使用，请先取得 AIEMY 的书面授权；
+未获授权进行商业使用的，著作权人保留追究法律责任的权利。
+
+**历史说明**：本项目早期版本曾以 AGPL-3.0 发布。自 2026-11-01 起新版本改用
+个人学习许可；变更前已获得 AGPL-3.0 副本的使用者，其就该副本的权利不受影响。
+
+> 一句话：**可以拿来自学、研究、改造着玩；不能拿去赚钱，也不能拿去给客户交付。**
