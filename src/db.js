@@ -723,6 +723,27 @@ CREATE TABLE IF NOT EXISTS api_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_apilog_client ON api_logs(client_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_apilog_time ON api_logs(created_at);
+
+-- 官网注册自动开通的试用账号：到期由官网调用内部接口 / 本机定时任务回收
+-- user_id / org_id 故意不加外键：账号被物理删除后仍要保留这条开通记录，便于对账
+CREATE TABLE IF NOT EXISTS trial_accounts (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER,
+  org_id      INTEGER,
+  username    TEXT,
+  email       TEXT NOT NULL,
+  name        TEXT,
+  company     TEXT,
+  source      TEXT NOT NULL DEFAULT 'website',
+  days        INTEGER NOT NULL DEFAULT 7,
+  expires_at  TEXT NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'active',
+  created_at  TEXT NOT NULL,
+  purged_at   TEXT,
+  purge_note  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_trial_status ON trial_accounts(status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_trial_email ON trial_accounts(email);
 `;
 
 // SQLite 建表 DDL：列定义与 PG 完全一致，仅主键自增写法不同

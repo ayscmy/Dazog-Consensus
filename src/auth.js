@@ -35,6 +35,12 @@ export const ROLES = {
     scope: 'self',
     modules: ['dashboard', 'lead', 'account', 'opportunity', 'quotation', 'contract', 'approval', 'report', 'product']
   },
+  trial: {
+    label: '试用账号',
+    // 官网注册自动开通的试用身份：只看自己那份组织，能走完整流程，但进不了团队管理
+    scope: 'org',
+    modules: ['dashboard', 'lead', 'account', 'opportunity', 'quotation', 'contract', 'finance', 'approval', 'report', 'product']
+  },
   sdr: {
     label: '线索专员',
     scope: 'self',
@@ -51,7 +57,7 @@ export const ROLES = {
     modules: ['dashboard', 'contract', 'approval']
   }
 };
-export const ROLE_ORDER = ['admin', 'gm', 'director', 'manager', 'ae', 'sdr', 'finance', 'legal'];
+export const ROLE_ORDER = ['admin', 'gm', 'director', 'manager', 'ae', 'trial', 'sdr', 'finance', 'legal'];
 
 /**
  * 分级管理：谁能管理哪些人
