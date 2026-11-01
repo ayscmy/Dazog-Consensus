@@ -27,10 +27,25 @@
   后端 `requireAdmin` 拦截，销售总监与销售经理虽然有 `admin` 模块（能管人与组织），
   但看不到该页签，直接调接口也会 403
 
+### 社区版用户额度
+
+- 社区版（`CRM_EDITION=community`）最多 **10 个在职用户**，超限时新增 / 恢复账号返回
+  `403 { code: "USER_LIMIT", limit, current, upgradeUrl }`
+- 判定只看在职账号：离职与停用不占名额；**官网自动开通的 `trial` 账号不占名额**，
+  否则第 11 个访客注册时试用会静默失败
+- 额度可用 `CRM_USER_LIMIT` 覆盖（`0` = 不限），商业授权默认不限
+- 后台「用户与组织」显示 `当前/上限`，用满时顶部告警条 + 新增按钮直接弹升级说明
+- 升级弹窗含社区版/商业授权对比表与「前往官网了解授权」，跳转地址由 `CRM_UPGRADE_URL` 配置
+  （默认 `https://office.aiemy.com/?from=crm#pricing`）
+
 ### 修复
 
 - `GET /api/admin/api-clients` 用 `map(async …)` 得到 Promise 数组，序列化后每行都是 `{}`，
   导致接入方列表空白、启用数恒为 0。改为 `Promise.all` 收齐
+- `GET /api/admin/users` 同一问题：用户列表每行都是 `{}`
+- `POST /api/admin/users` 里 `const id = (async () => …)()` 得到的是 Promise，直接当参数插
+  `user_roles` 会被 `node:sqlite` 拒绝 → 接口 500，但 users 行已插入，留下没有角色的孤儿账号。
+  改为 `await` 后取 `idOf()`
 
 ### 许可
 

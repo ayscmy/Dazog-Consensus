@@ -1,4 +1,5 @@
 import { GET, POST, PATCH, bad, notFound, denied } from '../http.js';
+import { assertUserSlot, userQuota } from '../edition.js';
 import { all, one, run, tx, nowIso, idOf } from '../db.js';
 import { hashPassword } from '../password.js';
 import { ROLES, ROLE_ORDER, canManageUsers, canManageUser, assignableRoles, peopleScope, fmtLocal } from '../auth.js';
@@ -47,7 +48,7 @@ async function assetCounts(uid) {
 GET('/api/admin/users', async ctx => {
   requireUserAdmin(ctx.user);
   const scope = peopleScope(ctx.user, 'u.org_id');
-  const rows = (await all(`select u.id, u.username, u.name, u.title, u.email, u.phone, u.org_id, u.status,
+  const list = await all(`select u.id, u.username, u.name, u.title, u.email, u.phone, u.org_id, u.status,
             u.created_at, u.last_login_at, u.discount_limit,
             u.left_at, u.left_reason, u.handover_to, u.handover_at,
             o.name as org_name, o.path as org_path, o.level as org_level,
@@ -57,7 +58,10 @@ GET('/api/admin/users', async ctx => {
      join org_units o on o.id=u.org_id
      left join users h on h.id=u.handover_to
      where ${scope.sql}
-     order by o.path, u.id`, ...scope.params)).map(async x => {
+     order by o.path, u.id`, ...scope.params);
+  // canManageUser 是异步的，必须 Promise.all 收齐；
+  // 直接 map(async …) 会得到 Promise 数组，序列化成 JSON 后每行都是 {}
+  const rows = await Promise.all(list.map(async x => {
     const roles = String(x.roles || '').split(',').filter(Boolean);
     return {
       ...x,
@@ -68,9 +72,10 @@ GET('/api/admin/users', async ctx => {
         roles
       })
     };
-  });
+  }));
   return {
     rows,
+    quota: await userQuota(),
     roles: ROLE_ORDER.map(k => ({
       key: k,
       label: ROLES[k].label,
@@ -103,10 +108,15 @@ POST('/api/admin/users', async ctx => {
   if (roles.some(r => !allowed.includes(r))) {
     throw denied(`按你的管理级别，只能授予：${allowed.map(r => ROLES[r].label).join('、')}`);
   }
-  const id = (async () => {
-    const r = await run('insert into users(username,name,password,email,phone,org_id,title,status,created_at) values(?,?,?,?,?,?,?,?,?)', b.username, b.name, hashPassword(b.password), b.email, b.phone, b.org_id, b.title, 'active', nowIso());
-    return idOf(r);
-  })();
+  // 社区版额度检查放在所有参数校验之后：先让用户看到「账号重复」这类真错误，再谈收费
+  await assertUserSlot();
+  // 这里必须是 await 后的 id：之前写成 (async () => …)() 返回 Promise，
+  // 直接当参数插 user_roles 会被 node:sqlite 拒绝，结果「用户建了、角色没建」留下孤儿账号
+  const created = await run(
+    'insert into users(username,name,password,email,phone,org_id,title,status,created_at) values(?,?,?,?,?,?,?,?,?)',
+    b.username, b.name, hashPassword(b.password), b.email, b.phone, b.org_id, b.title, 'active', nowIso()
+  );
+  const id = idOf(created);
   for (const r of roles) await run('insert into user_roles(user_id,role) values(?,?)', id, r);
   return {
     id
@@ -120,6 +130,8 @@ PATCH('/api/admin/users/:id', async ctx => {
   }
   const b = ctx.body || {};
   if (b.status === 'left') throw bad('离职请走「办理离职交接」流程，不能直接把状态改成离职');
+  // 停用的账号重新启用会重新占用名额，先查额度
+  if (b.status === 'active' && u.status !== 'active') await assertUserSlot();
   const sets = [];
   const params = [];
   for (const f of ['name', 'title', 'email', 'phone', 'org_id', 'status', 'discount_limit']) {
@@ -273,6 +285,7 @@ POST('/api/admin/users/:id/restore', async ctx => {
   if (ctx.user.role !== 'admin') throw denied('只有系统管理员可以恢复离职账号');
   const u = await loadTarget(ctx.params.id);
   if (u.status !== 'left') throw bad('该账号不在离职状态');
+  await assertUserSlot();
   await run(`update users set status='active', left_at=null, left_reason=null, handover_to=null, handover_at=null where id=?`, u.id);
   return {
     ok: true

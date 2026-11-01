@@ -310,6 +310,8 @@ nav.sb-nav { flex: 1; overflow-y: auto; padding-top: 2px; }
 }
 .notice.blue { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink); }
 .notice.red { background: var(--red-soft); border-color: #f3d2cf; color: #9c3b34; }
+/* 额度/升级提示：比红色缓和，比蓝色更"需要你处理" */
+.notice.amber { background: #fff8e6; border-color: #f0dfb2; color: #8a6100; }
 .notice svg { flex: 0 0 auto; margin-top: 1px; }
 
 /* 响应式 */

@@ -74,13 +74,74 @@ function statusCell(u) {
   return badge('在职', 'green');
 }
 
+/* ---------------- 用户额度 / 升级提示 ---------------- */
+
+/**
+ * 用户数用满时的收费说明。
+ * 这里不是「报错」，是产品边界：社区版免费但限 10 人，商业用途需要授权。
+ * 所以文案要给清楚三件事——为什么被拦、免费版能做什么、在哪继续。
+ */
+function showUpgrade(d) {
+  const limit = d.limit ?? 10;
+  const current = d.current ?? limit;
+  const url = d.upgradeUrl || 'https://office.aiemy.com/?from=crm#pricing';
+  modal({
+    title: '社区版用户数已用满',
+    width: 580,
+    body: `<div class="notice amber">${icon('warn', 14)}
+        <div>社区版最多 <b>${limit}</b> 个在职用户，当前已有 <b>${current}</b> 个，暂时无法再添加成员。</div>
+      </div>
+
+      <table class="grid" style="margin-top:12px">
+        <thead><tr><th>能力</th><th style="width:120px">社区版（免费）</th><th style="width:130px">商业授权</th></tr></thead>
+        <tbody>
+          <tr style="cursor:default"><td>在职用户数</td><td>最多 ${limit} 个</td><td>不限</td></tr>
+          <tr style="cursor:default"><td>使用场景</td><td>个人学习、研究</td><td>企业内部经营、项目交付</td></tr>
+          <tr style="cursor:default"><td>商业使用</td><td>不允许</td><td>允许</td></tr>
+          <tr style="cursor:default"><td>版本更新</td><td>社区自助</td><td>持续更新</td></tr>
+          <tr style="cursor:default"><td>技术支持</td><td>—</td><td>包含</td></tr>
+        </tbody>
+      </table>
+
+      <div class="hint" style="margin-top:10px">
+        本项目版权归 <b>AIEMY</b> 所有，社区版仅限个人学习与非营利研究使用；
+        任何商业用途都需先取得商业授权。当前已有 ${current} 个在职成员，
+        如需继续添加，请前往官网了解授权方式。
+      </div>`,
+    footer: `<button class="btn" data-c>知道了</button>
+      <button class="btn btn-primary" data-go>前往官网了解授权</button>`,
+    onMount(root, close) {
+      root.querySelector('[data-c]').onclick = close;
+      root.querySelector('[data-go]').onclick = () => window.open(url, '_blank', 'noopener');
+    },
+  });
+}
+
+/** 统一的接口错误处理：额度类走升级弹窗，其余照旧 toast */
+function handleApiError(e) {
+  if (e && e.detail && e.detail.code === 'USER_LIMIT') showUpgrade(e.detail);
+  else toast(e.message || '操作失败', 'err');
+}
+
 async function renderUsers(panel, ctx) {
   const d = await api.get('/api/admin/users');
   const isAdmin = state.user.role === 'admin';
   const active = d.rows.filter((u) => u.status === 'active');
   const left = d.rows.filter((u) => u.status === 'left');
+  const q = d.quota || { unlimited: true };
 
-  panel.innerHTML = `<div class="listwrap"><div class="tablewrap">
+  // 额度用满时，「新增用户」直接弹说明，省掉「填完表单才被拒」的一次挫败
+  const newBtn = panel.parentElement?.querySelector('[data-new-user]');
+  if (newBtn && q.reached) newBtn.onclick = () => showUpgrade(q);
+
+  panel.innerHTML = `
+  ${q.reached ? `<div class="notice amber" style="margin-bottom:12px">${icon('warn', 14)}
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span>社区版最多 <b>${q.limit}</b> 个在职用户，已用满（${q.current}/${q.limit}）。继续添加需要升级到商业授权。</span>
+      <button class="btn btn-sm" data-upgrade>了解授权</button>
+    </div></div>` : ''}
+
+  <div class="listwrap"><div class="tablewrap">
     <table class="grid">
       <thead><tr>
         <th style="min-width:160px">姓名</th><th>账号</th><th style="min-width:170px">组织</th>
@@ -109,7 +170,7 @@ async function renderUsers(panel, ctx) {
   </div></div>
 
   <div class="kpis" style="margin-top:14px">
-    <div class="kpi"><div class="lb">在职成员</div><div class="vl">${active.length}</div><div class="sb">你可见范围内</div></div>
+    <div class="kpi"><div class="lb">在职成员</div><div class="vl" style="${q.reached ? 'color:var(--red)' : ''}">${q.unlimited ? active.length : `${q.current}/${q.limit}`}</div><div class="sb">${q.unlimited ? '你可见范围内' : `社区版限额，剩余 ${q.left} 个`}</div></div>
     <div class="kpi"><div class="lb">已离职</div><div class="vl">${left.length}</div><div class="sb">账号已停用，不可登录</div></div>
     <div class="kpi"><div class="lb">你的可管范围</div><div class="vl" style="font-size:14px">${state.user.scope === 'all' ? '全集团' : '本组织及下级'}</div><div class="sb">不能跨部门</div></div>
     <div class="kpi"><div class="lb">可授予角色</div><div class="vl" style="font-size:13px">${(d.assignable || []).map((r) => (d.roles.find((x) => x.key === r) || {}).label || r).join(' / ') || '—'}</div><div class="sb">按级别上限</div></div>
@@ -133,6 +194,8 @@ async function renderUsers(panel, ctx) {
   panel.querySelectorAll('[data-edit]').forEach((b) => {
     b.onclick = () => editUser(d.rows.find((u) => String(u.id) === b.dataset.edit), ctx, d);
   });
+  const upBtn = panel.querySelector('[data-upgrade]');
+  if (upBtn) upBtn.onclick = () => showUpgrade(q);
   panel.querySelectorAll('[data-leave]').forEach((b) => {
     b.onclick = () => leaveUser(d.rows.find((u) => String(u.id) === b.dataset.leave), ctx);
   });
@@ -143,7 +206,7 @@ async function renderUsers(panel, ctx) {
         await api.post(`/api/admin/users/${b.dataset.restore}/restore`);
         toast('账号已恢复', 'ok');
         ctx.refresh();
-      } catch (e) { toast(e.message, 'err'); }
+      } catch (e) { handleApiError(e); }
     };
   });
 }
@@ -200,7 +263,11 @@ function editUser(user, ctx, data) {
             await api.patch(`/api/admin/users/${user.id}`, body);
           }
           toast('已保存', 'ok'); close(); ctx.refresh();
-        } catch (e) { toast(e.message, 'err'); }
+        } catch (e) {
+          // 用户数上限不是「操作出错」，而是需要付费解锁，弹专门的说明而不是普通 toast
+          if (e && e.detail && e.detail.code === 'USER_LIMIT') { close(); showUpgrade(e.detail); }
+          else toast(e.message, 'err');
+        }
       };
     },
   });
