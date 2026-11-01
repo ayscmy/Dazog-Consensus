@@ -18,3 +18,5 @@ import './leads-api.js';
 import './api-admin.js';
 // 官网开通/回收试用账号的内部接口
 import './trial-api.js';
+// 商业授权的查看与激活（仅系统管理员）
+import './license.js';

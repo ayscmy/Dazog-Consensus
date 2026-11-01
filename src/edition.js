@@ -1,18 +1,19 @@
 import { one } from './db.js';
 import { HttpError } from './http.js';
+import { entitlements } from './license.js';
 
 /**
  * 版本与用户额度。
  *
- * 社区版（community）免费，但限制在职用户数量——这不是技术限制，是授权边界：
- * 本项目禁止商业使用（见 LICENSE），愿意付费的用户走商业授权解除。
- * 商业授权用 CRM_USER_LIMIT 覆盖，设 0 表示不限。
+ * 判定顺序：**有效授权 > 配置项 > 社区版默认**。
+ *   - 有合法授权码 → 按授权里的 users（0 = 不限）与 edition 走；
+ *   - 没授权 → 看 CRM_USER_LIMIT / CRM_EDITION（便于自建部署临时放开）；
+ *   - 都没有 → 社区版 10 人。
  *
  * 两个容易踩的点：
- *   1. 只数「在职」用户（status='active'）。离职与停用不占位，
- *      否则客户每年换一批人，额度几下就被历史账号吃满。
- *   2. 不数试用账号（role='trial'）。它们由官网注册自动创建，
- *      不是管理员主动添加的成员；算进去会让「注册即开试用」在第 11 个访客时静默失败。
+ *   1. 只数「在职」用户。离职与停用不占位，否则客户每年换一批人，额度几下就被历史账号吃满。
+ *   2. 不数试用账号（role='trial'）。它们由官网注册自动创建，不是管理员主动添加的成员；
+ *      算进去会让「注册即开试用」在第 11 个访客时静默失败。
  */
 
 export const EDITION = String(process.env.CRM_EDITION || 'community').toLowerCase();
@@ -32,14 +33,38 @@ function readLimit() {
   return Math.floor(n);
 }
 
-/** 0 = 不限 */
-export const USER_LIMIT = readLimit();
+/** 无授权时的上限（0 = 不限） */
+export const CONFIG_LIMIT = readLimit();
 export const COMMUNITY_USER_LIMIT = COMMUNITY_LIMIT;
 
 export const UPGRADE_URL =
   process.env.CRM_UPGRADE_URL || 'https://office.aiemy.com/?from=crm#pricing';
 
-export const limitEnabled = () => USER_LIMIT > 0;
+/**
+ * 当前生效的额度方案。异步：要读授权（可能来自数据库）。
+ * @returns {Promise<{edition:string, limit:number, unlimited:boolean, licensed:boolean, license:object|null, source:'license'|'config'}>}
+ */
+export async function effectivePlan() {
+  const ent = await entitlements();
+  if (ent) {
+    return {
+      edition: ent.edition,
+      limit: ent.usersLimit,
+      unlimited: ent.usersLimit === 0,
+      licensed: true,
+      license: ent,
+      source: 'license',
+    };
+  }
+  return {
+    edition: EDITION,
+    limit: CONFIG_LIMIT,
+    unlimited: CONFIG_LIMIT === 0,
+    licensed: false,
+    license: null,
+    source: 'config',
+  };
+}
 
 /** 占额度的用户：在职、且不是试用账号 */
 export async function activeUserCount() {
@@ -53,16 +78,20 @@ export async function activeUserCount() {
 
 /** 给前端展示的额度快照 */
 export async function userQuota() {
+  const plan = await effectivePlan();
   const current = await activeUserCount();
-  const unlimited = !limitEnabled();
   return {
-    edition: EDITION,
-    limit: USER_LIMIT,
-    unlimited,
+    edition: plan.edition,
+    licensed: plan.licensed,
+    source: plan.source,
+    license: plan.license,
+    limit: plan.limit,
+    unlimited: plan.unlimited,
     current,
-    left: unlimited ? null : Math.max(0, USER_LIMIT - current),
-    reached: !unlimited && current >= USER_LIMIT,
+    left: plan.unlimited ? null : Math.max(0, plan.limit - current),
+    reached: !plan.unlimited && current >= plan.limit,
     upgradeUrl: UPGRADE_URL,
+    communityLimit: COMMUNITY_LIMIT,
   };
 }
 
@@ -71,18 +100,23 @@ export async function userQuota() {
  * 超限抛 403 并带 code=USER_LIMIT，前端据此弹收费说明而不是普通报错。
  */
 export async function assertUserSlot() {
-  if (!limitEnabled()) return;
+  const plan = await effectivePlan();
+  if (plan.unlimited) return;
+
   const current = await activeUserCount();
-  if (current < USER_LIMIT) return;
-  throw new HttpError(
-    403,
-    `社区版最多 ${USER_LIMIT} 个在职用户，当前已有 ${current} 个。继续添加成员需要升级到商业授权。`,
-    {
-      code: 'USER_LIMIT',
-      edition: EDITION,
-      limit: USER_LIMIT,
-      current,
-      upgradeUrl: UPGRADE_URL,
-    }
-  );
+  if (current < plan.limit) return;
+
+  const who = plan.licensed ? '当前授权' : '社区版';
+  const tail = plan.licensed
+    ? '请联系 AIEMY 升级授权额度或续费。'
+    : '继续添加成员需要升级到商业授权。';
+
+  throw new HttpError(403, `${who}最多 ${plan.limit} 个在职用户，当前已有 ${current} 个。${tail}`, {
+    code: 'USER_LIMIT',
+    edition: plan.edition,
+    licensed: plan.licensed,
+    limit: plan.limit,
+    current,
+    upgradeUrl: UPGRADE_URL,
+  });
 }

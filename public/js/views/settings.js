@@ -40,9 +40,15 @@ function inputFor(item, value, disabled) {
 }
 
 export async function render(el, route, ctx) {
-  const d = await api.get('/api/settings');
+  // 授权信息只有超管能看；非超管拿不到就降级不显示这块，不要因为 403 整页报错
+  const [d, lic] = await Promise.all([
+    api.get('/api/settings'),
+    api.get('/api/admin/license').catch(() => null),
+  ]);
   const v = d.values;
   const edit = d.canEdit;
+  const ent = lic && lic.entitlements;
+  const licEnv = lic && lic.source === 'env';
 
   const roleSet = new Set(String(v['quote.custom_roles'] || '').split(',').map((s) => s.trim()).filter(Boolean));
 
@@ -128,6 +134,51 @@ export async function render(el, route, ctx) {
       <div class="card-head"><h3>当前生效的审批链</h3><span class="muted" style="font-size:12px">按折扣率试算</span></div>
       <div class="chain-preview" id="chainPreview"></div>
     </div>
+
+    ${lic ? `<div class="card" style="margin-top:18px">
+      <div class="card-head">
+        <h3>商业授权</h3>
+        <span class="muted" style="font-size:12px">授权决定用户数上限；无授权时按社区版规则（最多 ${esc(String(lic.quota.communityLimit || 10))} 个在职用户）</span>
+      </div>
+      <div style="padding:14px 16px">
+        <div class="notice ${lic.active ? 'blue' : 'amber'}" style="margin-bottom:12px">${icon(lic.active ? 'check' : 'warn', 14)}
+          <div>${lic.active
+            ? `已激活<b>${esc(ent.edition)}</b>授权，用户上限 <b>${ent.usersLimit === 0 ? '不限' : ent.usersLimit + ' 个'}</b>，${ent.expire ? `有效期至 <b>${esc(ent.expire)}</b>` : '永久有效'}。`
+            : `${esc(lic.reason || '尚未激活授权')}。当前按社区版规则运行：最多 ${esc(String(lic.quota.limit))} 个在职用户，已用 ${esc(String(lic.quota.current))} 个。`}</div>
+        </div>
+
+        <table class="grid">
+          <tbody>
+            ${lic.active ? `
+            <tr style="cursor:default"><td style="width:120px" class="muted">被授权方</td><td><b>${esc(ent.customer || '—')}</b></td></tr>
+            <tr style="cursor:default"><td class="muted">授权编号</td><td class="mono">${esc(ent.licenseId || '—')}</td></tr>
+            <tr style="cursor:default"><td class="muted">用户上限</td><td>${ent.usersLimit === 0 ? '<b>不限</b>' : `<b>${ent.usersLimit}</b> 个在职用户`}</td></tr>
+            <tr style="cursor:default"><td class="muted">有效期</td><td>${ent.expire ? esc(ent.expire) : '永久'}</td></tr>
+            <tr style="cursor:default"><td class="muted">绑定机器</td><td class="mono">${esc(ent.machine || '不绑定')}</td></tr>
+            <tr style="cursor:default"><td class="muted">签发日期</td><td>${esc(ent.issuedAt || '—')}</td></tr>
+            <tr style="cursor:default"><td class="muted">授权来源</td><td>${lic.source === 'env' ? '环境变量 <span class="mono">CRM_LICENSE</span>' : '后台激活（存数据库）'}</td></tr>
+            ` : ''}
+            <tr style="cursor:default"><td class="muted">本机指纹</td><td>
+              <span class="mono">${esc(lic.machine)}</span>
+              <button class="btn btn-sm" data-copy-machine style="margin-left:8px">复制</button>
+              <div class="cell-sub">需要绑定机器时把它给签发方；不绑则换服务器无需重签</div>
+            </td></tr>
+          </tbody>
+        </table>
+
+        ${edit && !licEnv ? `
+        <div class="field" style="margin-top:14px">
+          <label>${lic.active ? '更换授权码' : '粘贴授权码激活'}</label>
+          <textarea class="textarea" name="license_code" style="font-family:var(--mono);font-size:11.5px;height:76px"
+            placeholder="粘贴以 eyJ 开头的一整行授权码"></textarea>
+          <div class="hint">授权码由 AIEMY 签发。也可以写进 <code>.env</code> 的 <code>CRM_LICENSE</code>（优先级更高，此时后台只读）。</div>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn btn-primary" data-lic-save>${lic.active ? '更换授权' : '激活授权'}</button>
+          ${lic.active && lic.source === 'console' ? '<button class="btn btn-danger" data-lic-clear>移除授权</button>' : ''}
+        </div>` : (licEnv ? '<div class="hint" style="margin-top:12px">当前授权来自环境变量 <code>CRM_LICENSE</code>，请在 <code>.env</code> 中修改后重启服务。</div>' : '')}
+      </div>
+    </div>` : ''}
   </div>`;
 
   const m = Number(v['approve.discount.manager'] || 5);
@@ -142,6 +193,47 @@ export async function render(el, route, ctx) {
       <span class="node">部门经理</span><i class="arrow">→</i><span class="node">销售总监</span></div><span class="muted">中等折扣</span></div>
     <div class="chain-row"><span class="pct">&gt; ${dr}%</span><div class="chain">
       <span class="node">部门经理</span><i class="arrow">→</i><span class="node">销售总监</span><i class="arrow">→</i><span class="node">总经理</span></div><span class="muted">大额让价</span></div>`;
+
+  /* ---------------- 商业授权 ---------------- */
+  const copyMachine = el.querySelector('[data-copy-machine]');
+  if (copyMachine) {
+    copyMachine.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(lic.machine);
+        toast('机器指纹已复制', 'ok');
+      } catch { toast('复制失败，请手动选中', 'err'); }
+    };
+  }
+
+  const licSave = el.querySelector('[data-lic-save]');
+  if (licSave) {
+    licSave.onclick = async () => {
+      const code = String(el.querySelector('[name="license_code"]')?.value || '').trim();
+      if (!code) return toast('请先粘贴授权码', 'err');
+      licSave.disabled = true;
+      try {
+        await api.post('/api/admin/license', { code });
+        toast('授权已生效', 'ok');
+        ctx.refresh();
+      } catch (e) {
+        toast(e.message, 'err');
+      } finally {
+        licSave.disabled = false;
+      }
+    };
+  }
+
+  const licClear = el.querySelector('[data-lic-clear]');
+  if (licClear) {
+    licClear.onclick = async () => {
+      if (!confirm('移除后台激活的授权？移除后实例会回落到社区版规则（最多 10 个在职用户）。')) return;
+      try {
+        await api.del('/api/admin/license');
+        toast('授权已移除', 'ok');
+        ctx.refresh();
+      } catch (e) { toast(e.message, 'err'); }
+    };
+  }
 
   const save = el.querySelector('[data-save]');
   if (!save) return;
