@@ -1,9 +1,9 @@
 {
   "name": "mserm-crm",
-  "version": "2.10.0",
-  "description": "MSERM 集团 CRM —— 线索到回款全流程，Node 原生服务 + SQLite，多用户权限与审批流转，并提供对外线索 API（密钥+IP+限额授权）",
+  "version": "2.10.1",
+  "description": "MSERM 集团 CRM —— 线索到回款全流程，Node 原生服务 + SQLite，多用户权限与审批流转，并提供对外线索 API（密钥+IP/域名+限额授权）",
   "type": "module",
-  "license": "AGPL-3.0-or-later",
+  "license": "SEE LICENSE IN LICENSE",
   "engines": {
     "node": ">=22.5"
   },

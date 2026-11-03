@@ -3,6 +3,33 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：`主版本.次版本.修订号`。
 数据库结构变更一律通过 `src/db.js` 的 `migrate()` 增量执行，升级前请先备份 `data/crm.db`。
 
+## 2.10.1
+
+**上线修整：登录入口、域名切换、技术栈文档**
+
+### 修复
+
+- `server.js` 里 `setupNeeded()` / `getSession()` / `demoAccount()` 未 `await`，
+  拿到的是 Promise（恒为真）→ **所有页面都被 302 到 `/setup.html`**，
+  已初始化实例也进不去登录页。补 `await` 后：`/` → `/login.html`、`/setup.html` → 回登录页
+- `GET /api/admin/users`、`GET /api/admin/api-clients` 用 `map(async …)` 得到 Promise 数组，
+  序列化成 `{}`，列表空白。改 `Promise.all`
+- `POST /api/admin/users` 把 `(async () => …)()` 的 Promise 当参数插 `user_roles`，
+  接口 500 但 users 行已插入，留下没有角色的孤儿账号
+
+### 新增
+
+- 登录页演示账号改为**点击即登录**（填入并自动提交），并新增「试用账号 · 需先注册会员」
+  常显入口，注册链接跟随 `SITE_URL`
+- `docs/18-开发语言与工具.md`：技术栈归类（语言 / 运行时 / 依赖 / 数据存储 / 前端 /
+  部署运维 / 自检工具 / 协作 / 加密用法 / 版本矩阵 / 明确不用的技术及原因）
+
+### 变更
+
+- 官网地址统一为 `aioffice.aiemy.com`（升级跳转、登录页兜底链接、`.env`）
+- `package.json` 的 `license` 由 `AGPL-3.0-or-later` 改为 `SEE LICENSE IN LICENSE`，
+  与自定义的「AIEMY 个人学习许可」对齐
+
 ## 2.10.0
 
 **商业授权：离线可验的 Ed25519 授权码，解除社区版 10 人限制**
