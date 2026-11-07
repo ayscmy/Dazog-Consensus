@@ -1,6 +1,7 @@
 import { GET, POST, PATCH, bad, notFound } from '../http.js';
 import { all, one, run, nowIso, idOf, today } from '../db.js';
 import { requireScope, auditApi } from '../api-auth.js';
+import { apiInOrg, recordApiIn } from '../pool.js';
 
 /**
  * 对外开放的线索接口（v1）。
@@ -69,10 +70,17 @@ async function inScope(client, lead) {
   return Boolean(org && base && org.path.startsWith(base.path));
 }
 
-/** 新线索的负责人：优先请求里指定，其次接入方默认负责人 */
-async function resolveOwner(client, wanted) {
+/**
+ * 新线索的负责人：优先请求里指定，其次接入方默认负责人。
+ * 返回 null = 入公共池（docs/20 第 3.7 节）：
+ * 未指定负责人且未配默认负责人时，若 api_clients.pool_on_missing = 1，
+ * 线索进入公海而不是直接报错；显式配 0 保留旧报错行为。
+ * PATCH 指定负责人时传 allowPool:false，避免把「更新」变成「静默放回池」。
+ */
+async function resolveOwner(client, wanted, { allowPool = true } = {}) {
   const id = Number(wanted || 0) || Number(client.owner_id || 0);
   if (!id) {
+    if (allowPool && Number(client.pool_on_missing ?? 1) === 1) return null;
     throw bad('该接入方没有配置默认线索负责人，请管理员在「API 接入」里设置后再写入');
   }
   const u = await one('select id, name, org_id, status from users where id = ?', id);
@@ -353,16 +361,23 @@ apiPost('/api/v1/leads', async ctx => {
     }
   }
   const owner = await resolveOwner(ctx.client, b.owner_id);
+  const inPool = owner === null;
+  const orgId = inPool ? await apiInOrg(ctx.client) : owner.org_id;
   const now = nowIso();
   const r = await run(`insert into leads(name,external_id,contact_name,contact_title,contact_phone,contact_email,
        source,industry,region,demand,budget,purchase_time,next_action,next_date,
        status,score,owner_id,org_id,created_by,created_at,updated_at)
-     values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, data.name, externalId, data.contact_name ?? null, data.contact_title ?? null, data.contact_phone ?? null, data.contact_email ?? null, data.source ?? null, data.industry ?? null, data.region ?? null, data.demand ?? null, data.budget ?? null, data.purchase_time ?? null, data.next_action ?? '首次电话沟通', data.next_date ?? today(1), 'new', data.score ?? 50, owner.id, owner.org_id, ctx.client.owner_id || null, now, now);
+     values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, data.name, externalId, data.contact_name ?? null, data.contact_title ?? null, data.contact_phone ?? null, data.contact_email ?? null, data.source ?? null, data.industry ?? null, data.region ?? null, data.demand ?? null, data.budget ?? null, data.purchase_time ?? null, data.next_action ?? '首次电话沟通', data.next_date ?? today(1), 'new', data.score ?? 50, inPool ? null : owner.id, orgId, ctx.client.owner_id || null, now, now);
   const id = idOf(r);
+  if (inPool) {
+    await run('update leads set pool_at = ?, pool_reason = ?, pool_count = 1 where id = ?', now, 'api', id);
+    await recordApiIn(id, orgId, ctx.client);
+  }
   await auditApi(ctx, 'POST /api/v1/leads', 'lead', id, {
     name: data.name,
     external_id: externalId,
-    source: data.source
+    source: data.source,
+    in_pool: inPool
   });
   const saved = await one(`${SELECT_LEAD} where l.id = ?`, id);
   return ok(ctx, {
@@ -383,7 +398,7 @@ apiPatch('/api/v1/leads/:id', async ctx => {
     params.push(data[f]);
   }
   if (b.owner_id !== undefined) {
-    const owner = await resolveOwner(ctx.client, b.owner_id);
+    const owner = await resolveOwner(ctx.client, b.owner_id, { allowPool: false });
     sets.push('owner_id = ?', 'org_id = ?');
     params.push(owner.id, owner.org_id);
   }
@@ -456,7 +471,9 @@ apiPost('/api/v1/leads/batch', async ctx => {
     errors: [],
     ids: []
   };
-  list.forEach(async (item, index) => {
+  // 用 for...of 而不是 forEach(async ...)：后者不会等待回调里的 await，
+  // 响应会带着空的 created/duplicated 先返回，入池写入也可能还没落库。
+  for (const [index, item] of list.entries()) {
     try {
       const b = item || {};
       const data = readWriteBody(b);
@@ -465,33 +482,30 @@ apiPost('/api/v1/leads/batch', async ctx => {
         const exist = await one('select id from leads where external_id = ?', externalId);
         if (exist) {
           result.duplicated++;
-          result.ids.push({
-            index,
-            id: exist.id,
-            duplicated: true
-          });
-          return;
+          result.ids.push({ index, id: exist.id, duplicated: true });
+          continue;
         }
       }
       const owner = await resolveOwner(ctx.client, b.owner_id);
+      const inPool = owner === null;
+      const orgId = inPool ? await apiInOrg(ctx.client) : owner.org_id;
       const now = nowIso();
       const r = await run(`insert into leads(name,external_id,contact_name,contact_title,contact_phone,contact_email,
            source,industry,region,demand,budget,purchase_time,next_action,next_date,
            status,score,owner_id,org_id,created_by,created_at,updated_at)
-         values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, data.name, externalId, data.contact_name ?? null, data.contact_title ?? null, data.contact_phone ?? null, data.contact_email ?? null, data.source ?? null, data.industry ?? null, data.region ?? null, data.demand ?? null, data.budget ?? null, data.purchase_time ?? null, data.next_action ?? '首次电话沟通', data.next_date ?? today(1), 'new', data.score ?? 50, owner.id, owner.org_id, ctx.client.owner_id || null, now, now);
+         values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, data.name, externalId, data.contact_name ?? null, data.contact_title ?? null, data.contact_phone ?? null, data.contact_email ?? null, data.source ?? null, data.industry ?? null, data.region ?? null, data.demand ?? null, data.budget ?? null, data.purchase_time ?? null, data.next_action ?? '首次电话沟通', data.next_date ?? today(1), 'new', data.score ?? 50, inPool ? null : owner.id, orgId, ctx.client.owner_id || null, now, now);
+      const id = idOf(r);
+      if (inPool) {
+        await run('update leads set pool_at = ?, pool_reason = ?, pool_count = 1 where id = ?', now, 'api', id);
+        await recordApiIn(id, orgId, ctx.client);
+      }
       result.created++;
-      result.ids.push({
-        index,
-        id: idOf(r)
-      });
+      result.ids.push({ index, id });
     } catch (e) {
       result.failed++;
-      result.errors.push({
-        index,
-        message: e.message || '写入失败'
-      });
+      result.errors.push({ index, message: e.message || '写入失败' });
     }
-  });
+  }
   await auditApi(ctx, 'POST /api/v1/leads/batch', 'lead', null, {
     total: result.total,
     created: result.created,

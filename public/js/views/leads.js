@@ -39,6 +39,7 @@ export async function render(el, route, ctx) {
         <div class="desc">线索归属与商机归属分开计量，转化时强制校验四要素</div>
       </div>
       <div class="actions">
+        <a class="btn" href="#/pool">${icon('pool', 13)} 公共池${s.poolTotal ? ` <span class="cnt">${s.poolTotal}</span>` : ''}</a>
         <button class="btn" data-refresh>${icon('search', 13)} 刷新</button>
         <button class="btn btn-primary" data-new>${icon('plus', 12)} 新建线索</button>
       </div>
@@ -228,6 +229,7 @@ export async function openLead(id, ctx) {
       ${!['converted', 'invalid'].includes(l.status) && editable ? `
         <button class="btn" data-to="contacted">标记跟进中</button>
         <button class="btn" data-to="qualified">确认商机</button>
+        <button class="btn" data-release>放回公海</button>
         <button class="btn btn-danger" data-invalid>标记无效</button>
         <div class="spacer"></div>
         <button class="btn btn-primary" data-convert>转商机</button>
@@ -276,6 +278,15 @@ export async function openLead(id, ctx) {
           },
         });
         void m;
+      };
+
+      const rel = root.querySelector('[data-release]');
+      if (rel) rel.onclick = async () => {
+        if (!confirm('确认把这条线索放回公共池？放回后组织内其他成员可以领取。')) return;
+        try {
+          await api.post(`/api/leads/${l.id}/release`, { reason: '主动放回' });
+          toast('已放回公共池', 'ok'); close(); ctx.refresh();
+        } catch (e) { toast(e.message, 'err'); }
       };
 
       const cv = root.querySelector('[data-convert]');

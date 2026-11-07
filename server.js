@@ -10,6 +10,7 @@ import { getSession, createSession, COOKIE } from './src/auth.js';
 import { DEMO_MODE, demoAccount } from './src/demo.js';
 import { findQuoteByToken, renderSheetHtml } from './src/doc/quote-sheet.js';
 import { startTrialJanitor, TRIAL_DAYS, TRIAL_RETAIN_DAYS, TRIAL_URL } from './src/trial.js';
+import { startPoolJanitor, poolBanner } from './src/pool.js';
 import './src/routes/index.js';
 
 const PORT = Number(process.env.PORT || 8081);
@@ -17,6 +18,8 @@ const HOST = process.env.HOST || '0.0.0.0';
 const PUBLIC = join(process.cwd(), 'public');
 
 await migrate();
+// 启动横幅要打印当前生效的公海规则；migrate 之后 settings 表才一定存在
+const POOL_BANNER = await poolBanner();
 if (await setupNeeded()) {
   console.log('[init] 检测到空数据库，请打开安装向导完成初始化：/setup.html');
 }
@@ -178,11 +181,14 @@ server.listen(PORT, HOST, () => {
   console.log(`  局域网访问 http://<本机IP>:${PORT}`);
   console.log(`  数据库     ${DB_LABEL}`);
   console.log(`  试用账号   ${process.env.TRIAL_API_KEY ? `已开启（${TRIAL_DAYS} 天试用 → 冻结保留 ${TRIAL_RETAIN_DAYS} 天 → 回收）` : '未配置 TRIAL_API_KEY，官网无法自助开通'}`);
+  console.log(`  ${POOL_BANNER}`);
   console.log('');
 });
 
 // 过期试用账号兜底清理（官网每小时也会调一次内部接口，两边互为保险）
 startTrialJanitor();
+// 线索公海双时钟回收：每小时一次，与试用清理并列注册
+startPoolJanitor();
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {

@@ -3,6 +3,7 @@ import { all, one, today, dateLtToday } from '../db.js';
 import { scopeFilter, canModule } from '../auth.js';
 import { pendingFor } from '../approval.js';
 import { OPP_STAGES, LEAD_STATUS } from '../dict.js';
+import { poolWhere } from '../pool.js';
 const monthKey = (d = new Date()) => d.toISOString().slice(0, 7);
 GET('/api/dashboard', async ctx => {
   const u = ctx.user;
@@ -35,6 +36,10 @@ GET('/api/dashboard', async ctx => {
             sum(case when status='new' then 1 else 0 end) fresh,
             sum(case when status='qualified' then 1 else 0 end) qualified
      from leads l where ${leadScope.sql}`, ...leadScope.params);
+  // 公共池待领数：scopeFilter 对 self 角色会排除 owner_id IS NULL，必须单独用 poolWhere
+  const poolW = poolWhere(u, 'l');
+  const poolTotal = Number((await one(`select count(*) c from leads l
+     where l.owner_id is null and l.status not in ('converted','invalid') and (${poolW.sql})`, ...poolW.params))?.c || 0);
   const funnel = OPP_STAGES.filter(s => !['lost'].includes(s.key)).map(s => {
     const list = opps.filter(o => o.stage === s.key);
     return {
@@ -153,6 +158,7 @@ GET('/api/dashboard', async ctx => {
     ranking,
     approvals,
     leads: leadRows.slice(0, 8),
+    poolTotal,
     leadOverview: {
       total: leadStats.total || 0,
       fresh: leadStats.fresh || 0,

@@ -369,6 +369,10 @@ CREATE TABLE IF NOT EXISTS leads (
   owner_id      INTEGER REFERENCES users(id),
   org_id        INTEGER NOT NULL REFERENCES org_units(id),
   claim_at      TEXT,
+  -- 公共池（线索公海）：owner_id IS NULL 即在池中；这三个字段只记池轨迹，不改业务状态机
+  pool_at       TEXT,
+  pool_reason   TEXT,
+  pool_count    INTEGER NOT NULL DEFAULT 0,
   invalid_reason TEXT,
   account_id    INTEGER REFERENCES accounts(id),
   contact_id    INTEGER REFERENCES contacts(id),
@@ -382,6 +386,23 @@ CREATE TABLE IF NOT EXISTS leads (
 CREATE INDEX IF NOT EXISTS idx_lead_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_lead_owner ON leads(owner_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_lead_external ON leads(external_id) WHERE external_id IS NOT NULL;
+-- idx_lead_pool 依赖 pool_at，而老库的 pool_at 由 ensureColumns() 补上，
+-- 所以这个索引不能放在建表 DDL 里，必须延后到 ensurePoolIndexes()（见 migrate()）。
+
+-- 公共池审计：与 activities 分开，避免跟进记录淹没「谁领了 / 谁放回 / 被谁回收」
+CREATE TABLE IF NOT EXISTS pool_events (
+  id          SERIAL PRIMARY KEY,
+  lead_id     INTEGER NOT NULL,
+  org_id      INTEGER NOT NULL,
+  actor_id    INTEGER,
+  action      TEXT NOT NULL,
+  reason      TEXT,
+  from_owner  INTEGER,
+  to_owner    INTEGER,
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pool_actor ON pool_events(actor_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_pool_lead  ON pool_events(lead_id, created_at);
 
 CREATE TABLE IF NOT EXISTS opportunities (
   id            SERIAL PRIMARY KEY,
@@ -694,6 +715,8 @@ CREATE TABLE IF NOT EXISTS api_clients (
   ip_whitelist TEXT NOT NULL DEFAULT '',
   -- 授权域名：与 IP 白名单互补。留空 = 不校验来源域名（服务器对服务器调用通常没有 Origin/Referer）
   domain_whitelist TEXT NOT NULL DEFAULT '',
+  -- 外部线索未指定负责人时：1 = 入公共池（默认），0 = 保留旧行为直接报错
+  pool_on_missing INTEGER NOT NULL DEFAULT 1,
   rate_limit   INTEGER NOT NULL DEFAULT 60,
   daily_quota  INTEGER NOT NULL DEFAULT 5000,
   expire_at    TEXT,
@@ -756,6 +779,16 @@ export async function migrate() {
   if (DB_ENGINE === 'postgres') await migratePg();
   else await migrateSqlite();
   await ensureColumns();
+  await ensurePoolIndexes();
+}
+
+/**
+ * 依赖「补列」结果的索引必须最后建。
+ * 老库升级时 pool_at 是 ensureColumns() 才加上的，若把 idx_lead_pool 写进建表 DDL，
+ * SQLite / PG 都会在建表阶段就报 no such column: pool_at，导致 migrate() 整体失败。
+ */
+async function ensurePoolIndexes() {
+  await run('CREATE INDEX IF NOT EXISTS idx_lead_pool ON leads(org_id, owner_id, pool_at)');
 }
 
 /**
@@ -769,6 +802,11 @@ const COLUMN_PATCHES = [
   ['api_clients', 'domain_whitelist', "TEXT NOT NULL DEFAULT ''"],
   // 到期不再立即删：先转 frozen 保留数据，满保留期才物理回收
   ['trial_accounts', 'frozen_at', 'TEXT'],
+  // 线索公海（见 docs/20 第 10.1 节）：新库已写进 CREATE TABLE，老库在这里补
+  ['leads', 'pool_at', 'TEXT'],
+  ['leads', 'pool_reason', 'TEXT'],
+  ['leads', 'pool_count', 'INTEGER NOT NULL DEFAULT 0'],
+  ['api_clients', 'pool_on_missing', 'INTEGER NOT NULL DEFAULT 1'],
 ];
 
 async function ensureColumns() {

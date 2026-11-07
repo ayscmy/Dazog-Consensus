@@ -51,6 +51,8 @@
 
 **转交线索负责人**：外部推来的线索默认挂在「默认负责人」名下，可见范围按该负责人的组织算；请求里带 `owner_id` 可指定到具体销售。
 
+**未指定负责人时（线索公海一期新增）**：若请求没带 `owner_id`、且接入方未配置默认负责人，线索不再直接报错，而是**进入线索公海**——`leads.owner_id = NULL`，写 `pool_at` / `pool_reason='api'` / `pool_count=1`，并记 `pool_events(action='api_in')`，由组织内成员在「公共池」页领取。`org_id` 取接入方所属组织，未配置时退回根组织。接入方可在后台关闭该行为（`pool_on_missing=0`），关闭后保留旧版「请管理员先配置默认负责人」报错；`POST /api/v1/leads/batch` 同样适用。`PATCH /api/v1/leads/:id` 更新负责人不会把线索静默放回池。该入池链路已由 `scripts/pool-check.mjs` 的 TC-12d~12h 用真实 HTTP 请求端到端验证（见 `docs/20` 第 12 节）。
+
 ---
 
 ## 3. 鉴权方式

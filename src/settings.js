@@ -51,7 +51,17 @@ export const DEFAULTS = {
   'sms.gateway': '',
   'sms.token': '',
   'sms.sign': '【铭世智能】',
-  'sms.template': '您好，{{company}} 已为您生成报价单 {{no}}，金额 {{amount}} 元，有效期至 {{valid_until}}。查看：{{link}}'
+  'sms.template': '您好，{{company}} 已为您生成报价单 {{no}}，金额 {{amount}} 元，有效期至 {{valid_until}}。查看：{{link}}',
+  // ---- 线索公海规则（docs/20 第 3.3 节）：全部可在「系统设置 → 公共池规则」里改，不用重启 ----
+  'pool.enabled': '1',
+  'pool.auto_reclaim': '1',
+  'pool.first_touch_hours': '24',            // 24h 无跟进：只提醒，不回收
+  'pool.first_touch_reclaim_hours': '72',    // 72h 仍无首触：回池
+  'pool.reclaim_days': '30',                 // 30 天无有效跟进：回池
+  'pool.protect_days': '7',                  // 领取后 7 天保护期，屏蔽上面两条回收
+  'pool.hold_limit': '50',                   // 单人在库上限
+  'pool.claim_weekly_limit': '10',           // 每周最多领取数
+  'pool.notify_before_days': '3'             // 提前 N 天写提醒（站内 activities）
 };
 export const SETTING_LABELS = [{
   group: '折扣审批阈值',
@@ -240,6 +250,55 @@ export const SETTING_LABELS = [{
     label: '短信模板',
     type: 'textarea',
     hint: '可用变量：{{company}} {{no}} {{amount}} {{valid_until}} {{link}}'
+  }]
+}, {
+  group: '公共池规则（线索公海）',
+  desc: '线索不屯积：无主线索进入公海供组织内领取，超时未跟进自动回收。回收只写轨迹、不改业务状态；无效线索永不回池。',
+  items: [{
+    key: 'pool.enabled',
+    label: '启用线索公海',
+    type: 'switch',
+    hint: '关闭后所有领取 / 放回 / 自动回收接口停用，但已有数据保留'
+  }, {
+    key: 'pool.auto_reclaim',
+    label: '启用定时自动回收',
+    type: 'switch',
+    hint: '每小时扫描一次；关闭后只能手动放回或经理强制回收'
+  }, {
+    key: 'pool.first_touch_hours',
+    label: '首次跟进提醒（小时）',
+    type: 'number',
+    hint: '领取后超过该时长仍无跟进，写一条提醒，不回收'
+  }, {
+    key: 'pool.first_touch_reclaim_hours',
+    label: '无首触回池（小时）',
+    type: 'number',
+    hint: '领取后超过该时长仍无有效跟进，回池（原因 first_touch_timeout）'
+  }, {
+    key: 'pool.reclaim_days',
+    label: '无跟进回池（天）',
+    type: 'number',
+    hint: '最近一次有效跟进起算，超过该天数回池（原因 timeout）'
+  }, {
+    key: 'pool.protect_days',
+    label: '领取保护期（天）',
+    type: 'number',
+    hint: '保护期内屏蔽两条自动回收；留 0 表示不保护'
+  }, {
+    key: 'pool.hold_limit',
+    label: '单人在库上限',
+    type: 'number',
+    hint: '同一个人名下未转化 / 未判无效的线索数上限'
+  }, {
+    key: 'pool.claim_weekly_limit',
+    label: '每周领取上限',
+    type: 'number',
+    hint: '按 pool_events 的 claim 事件统计，自然周内累计'
+  }, {
+    key: 'pool.notify_before_days',
+    label: '回收前提醒（天）',
+    type: 'number',
+    hint: '距回池不足该天数时写站内提醒（activities），邮件/短信列 P2'
   }]
 }];
 export async function getSetting(key) {

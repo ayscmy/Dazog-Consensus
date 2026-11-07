@@ -22,7 +22,8 @@
   "scripts": {
     "start": "node --no-warnings server.js",
     "dev": "node --no-warnings --watch server.js",
-    "backup": "node --no-warnings src/backup.js"
+    "backup": "node --no-warnings src/backup.js",
+    "test:pool": "node --no-warnings scripts/pool-check.mjs"
   },
   "homepage": "https://gitee.com/Emcloud_admin/mserm-crm#readme",
   "bugs": {

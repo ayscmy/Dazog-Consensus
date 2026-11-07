@@ -1,7 +1,18 @@
 import { GET, POST, PATCH, DELETE, bad, notFound, denied } from '../http.js';
 import { all, one, run, tx, nowIso, idOf, today, dateLtToday } from '../db.js';
 import { scopeFilter, canEditRecord, canModule } from '../auth.js';
+import { poolWhere } from '../pool.js';
 const EDITABLE = ['name', 'contact_name', 'contact_title', 'contact_phone', 'contact_email', 'source', 'industry', 'region', 'demand', 'budget', 'purchase_time', 'next_action', 'next_date', 'score', 'owner_id'];
+
+/**
+ * 池中线索（owner_id IS NULL）不能被当作私有线索直接改状态 / 改字段 / 删除 / 记跟进，
+ * 否则会绕过领取限额与 pool_events 审计。必须先走 /api/leads/pool/:id/claim。
+ */
+function assertNotPool(l) {
+  if (l.owner_id === null) {
+    throw bad('该线索在公共池中，请先领取后再操作', { code: 'POOL_NOT_IN_POOL' });
+  }
+}
 function listWhere(user, q) {
   const scope = scopeFilter(user, {
     owner: 'l.owner_id',
@@ -64,6 +75,11 @@ GET('/api/leads', async ctx => {
             coalesce(sum(case when status='converted' then 1 else 0 end),0) converted,
             coalesce(sum(case when status='invalid' then 1 else 0 end),0) invalid
      from leads l where ${sql}`, ...params);
+  // 公海待领数：scopeFilter 对 self 角色会把 owner_id IS NULL 的池线索排除掉，
+  // 必须单独用 poolWhere 统计，否则线索列表页的「公共池」角标恒为 0。
+  const pw = poolWhere(ctx.user, 'l');
+  stats.poolTotal = Number((await one(`select count(*) c from leads l
+     where l.owner_id is null and l.status not in ('converted','invalid') and (${pw.sql})`, ...pw.params))?.c || 0);
   return {
     rows,
     stats
@@ -100,6 +116,7 @@ POST('/api/leads', async ctx => {
 PATCH('/api/leads/:id', async ctx => {
   const l = await one('select * from leads where id = ?', ctx.params.id);
   if (!l) throw notFound('线索不存在');
+  assertNotPool(l);
   if (!(await canEditRecord(ctx.user, l))) throw denied('只能修改自己负责的线索');
   const b = ctx.body || {};
   const sets = [];
@@ -127,6 +144,7 @@ PATCH('/api/leads/:id', async ctx => {
 POST('/api/leads/:id/status', async ctx => {
   const l = await one('select * from leads where id = ?', ctx.params.id);
   if (!l) throw notFound('线索不存在');
+  assertNotPool(l);
   if (!(await canEditRecord(ctx.user, l))) throw denied('只能操作自己负责的线索');
   const {
     status,
@@ -157,6 +175,7 @@ POST('/api/leads/:id/status', async ctx => {
 POST('/api/leads/:id/convert', async ctx => {
   const l = await one('select * from leads where id = ?', ctx.params.id);
   if (!l) throw notFound('线索不存在');
+  assertNotPool(l);
   if (!(await canEditRecord(ctx.user, l))) throw denied('只能转化自己负责的线索');
   if (l.status === 'converted') throw bad('该线索已转化');
   if (l.status === 'invalid') throw bad('无效线索不能转化');
@@ -212,11 +231,14 @@ POST('/api/leads/:id/convert', async ctx => {
 POST('/api/leads/:id/activity', async ctx => {
   const l = await one('select * from leads where id = ?', ctx.params.id);
   if (!l) throw notFound('线索不存在');
+  assertNotPool(l);
   if (!(await canEditRecord(ctx.user, l))) throw denied('只能记录自己负责的线索');
   const b = ctx.body || {};
   if (!b.content) throw bad('请填写跟进内容');
   await run(`insert into activities(target_type,target_id,type,content,result,next_action,next_date,user_id,created_at)
      values('lead',?,?,?,?,?,?,?,?)`, l.id, b.type || 'call', b.content, b.result, b.next_action, b.next_date, ctx.user.id, nowIso());
+  // last_activity_at 表示「任意触达」（note 也算），用于首触时钟；
+  // 30 天跟进时钟只认 call/visit/email/meeting/wechat，由 src/pool.js 查 activities 判定，note 不续时钟。
   await run('update leads set last_activity_at=?, next_action=coalesce(?,next_action), next_date=coalesce(?,next_date), status=case when status=? then ? else status end, updated_at=? where id=?', nowIso(), b.next_action, b.next_date, 'new', 'contacted', nowIso(), l.id);
   return {
     ok: true
@@ -225,6 +247,7 @@ POST('/api/leads/:id/activity', async ctx => {
 DELETE('/api/leads/:id', async ctx => {
   const l = await one('select * from leads where id = ?', ctx.params.id);
   if (!l) throw notFound('线索不存在');
+  assertNotPool(l);
   if (ctx.user.role !== 'admin' && !(ctx.user.scope !== 'self' && (await canEditRecord(ctx.user, l)))) {
     throw denied('只有经理及以上可以删除线索');
   }

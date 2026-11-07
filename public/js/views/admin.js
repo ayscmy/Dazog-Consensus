@@ -588,7 +588,7 @@ async function renderApi(panel, ctx, el) {
               ${rows.map((c) => `<tr style="cursor:default">
                 <td>
                   <div class="cell-main">${esc(c.name)}</div>
-                  <div class="cell-sub mono">${esc(c.client_id)} · ${esc(c.key_prefix)}…</div>
+                  <div class="cell-sub mono">${esc(c.client_id)} · ${esc(c.key_prefix)}… · ${c.pool_on_missing === 0 ? '缺省报错' : '缺省入池'}</div>
                 </td>
                 <td>${clientStatus(c)}</td>
                 <td>${ipCell(c)}</td>
@@ -772,6 +772,14 @@ function openClientForm(c, d, ctx) {
       </div>
 
       <div class="field" style="margin-top:12px">
+        <label>线索负责人缺省策略</label>
+        <label class="api-scope">
+          <input type="checkbox" data-pool-missing ${c?.pool_on_missing === 0 ? '' : 'checked'} />
+          <span><b>未指定负责人时放入公共池</b><em>勾选：外部推送没带 owner_id、且接入方未配默认负责人时，线索进入公海供组织内成员领取；取消勾选则保留旧行为直接报错。</em></span>
+        </label>
+      </div>
+
+      <div class="field" style="margin-top:12px">
         <label>授权 IP 白名单 *</label>
         <textarea class="textarea" name="ip_whitelist" style="font-family:var(--mono);font-size:12px;height:88px"
           placeholder="10.0.1.20&#10;10.0.0.0/16">${esc(c?.ip_whitelist || '')}</textarea>
@@ -825,6 +833,7 @@ function openClientForm(c, d, ctx) {
           name: fd.name,
           owner_id: Number(fd.owner_id),
           scopes: picked,
+          pool_on_missing: root.querySelector('[data-pool-missing]')?.checked === false ? 0 : 1,
           ip_whitelist: fd.ip_whitelist,
           domain_whitelist: fd.domain_whitelist || '',
           rate_limit: fd.rate_limit === null ? 0 : Number(fd.rate_limit),

@@ -175,6 +175,7 @@ function clientRow(c) {
     ip_list: parseWhitelist(c.ip_whitelist),
     domain_whitelist: c.domain_whitelist || '',
     domain_list: parseDomains(c.domain_whitelist),
+    pool_on_missing: Number(c.pool_on_missing ?? 1),
     rate_limit: c.rate_limit,
     daily_quota: c.daily_quota,
     expire_at: c.expire_at,
@@ -249,12 +250,13 @@ POST('/api/admin/api-clients', async ctx => {
   const domainList = validateDomains(b.domain_whitelist);
   const rateLimit = intOr(b.rate_limit, 60, 0, 6000);
   const dailyQuota = intOr(b.daily_quota, 5000, 0, 1000000);
+  const poolOnMissing = Number(b.pool_on_missing) === 0 ? 0 : 1;
   const expireAt = b.expire_at ? String(b.expire_at).slice(0, 10) : null;
   if (expireAt && !/^\d{4}-\d{2}-\d{2}$/.test(expireAt)) throw bad('到期日需要是 YYYY-MM-DD');
   const k = issueKey();
-  const r = await run(`insert into api_clients(name,client_id,key_prefix,key_hash,status,scopes,ip_whitelist,domain_whitelist,
+  const r = await run(`insert into api_clients(name,client_id,key_prefix,key_hash,status,scopes,ip_whitelist,domain_whitelist,pool_on_missing,
        rate_limit,daily_quota,expire_at,org_id,owner_id,remark,created_by,created_at)
-     values(?,?,?,?,'active',?,?,?,?,?,?,?,?,?,?,?)`, name, k.clientId, k.prefix, k.hash, JSON.stringify(scopes), ipList.join('\n'), domainList.join('\n'), rateLimit, dailyQuota, expireAt, owner.org_id, owner.id, String(b.remark || '').slice(0, 300) || null, ctx.user.id, nowIso());
+     values(?,?,?,?,'active',?,?,?,?,?,?,?,?,?,?,?,?)`, name, k.clientId, k.prefix, k.hash, JSON.stringify(scopes), ipList.join('\n'), domainList.join('\n'), poolOnMissing, rateLimit, dailyQuota, expireAt, owner.org_id, owner.id, String(b.remark || '').slice(0, 300) || null, ctx.user.id, nowIso());
   return {
     ok: true,
     id: idOf(r),
@@ -302,6 +304,10 @@ PATCH('/api/admin/api-clients/:id', async ctx => {
   if (b.domain_whitelist !== undefined) {
     sets.push('domain_whitelist = ?');
     params.push(validateDomains(b.domain_whitelist).join('\n'));
+  }
+  if (b.pool_on_missing !== undefined) {
+    sets.push('pool_on_missing = ?');
+    params.push(Number(b.pool_on_missing) === 0 ? 0 : 1);
   }
   if (b.rate_limit !== undefined) {
     sets.push('rate_limit = ?');

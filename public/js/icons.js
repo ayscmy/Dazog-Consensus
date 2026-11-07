@@ -37,6 +37,7 @@ const P = {
   file: '<path d="M3.6 1.8h5.2l3.6 3.6v8.8H3.6z"/><path d="M8.8 1.8v3.6h3.6"/>',
   terminal: '<rect x="1.6" y="2.6" width="12.8" height="10.8" rx="1.6"/><path d="M4.4 6.2 6.6 8l-2.2 1.8"/><path d="M8.4 10h3.2"/>',
   key: '<circle cx="5.2" cy="8" r="2.8"/><path d="M8 8h6"/><path d="M11.6 8v2.2M13.8 8v1.6"/>',
+  pool: '<path d="M2.6 8a5.4 5.4 0 0 1 5.4-5.4h1.6"/><path d="M8 1.2 10.4 2.6 8 4"/><path d="M13.4 8a5.4 5.4 0 0 1-5.4 5.4H6.4"/><path d="M8 14.8 5.6 13.4 8 12"/><circle cx="8" cy="8" r="1.3"/>',
 };
 
 export function icon(name, size = 15, cls = '') {

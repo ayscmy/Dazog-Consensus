@@ -43,6 +43,17 @@ export async function render(el) {
       ${d.kpi.map(kpiCard).join('')}
     </div>
 
+    ${can('lead') ? `<div class="panel" style="margin-bottom:12px">
+      <div class="panel-head">
+        <h3>公共池</h3>
+        <span class="badge ${d.poolTotal ? 'badge-amber' : 'badge-gray'}">${d.poolTotal ? d.poolTotal + ' 条待领' : '暂无待领'}</span>
+        <button class="more" data-go="#/pool">进入公共池 →</button>
+      </div>
+      <div class="panel-body" style="padding:10px 14px">
+        <div class="muted" style="font-size:12.5px">未认领 / 超时未跟进的线索会回到公共池，组织内成员可领取；无效线索永不回池。</div>
+      </div>
+    </div>` : ''}
+
     ${d.receivable ? `<div class="panel" style="margin-bottom:12px">
       <div class="panel-head">
         <h3>财务概览</h3>

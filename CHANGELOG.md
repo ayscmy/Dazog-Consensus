@@ -3,6 +3,45 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：`主版本.次版本.修订号`。
 数据库结构变更一律通过 `src/db.js` 的 `migrate()` 增量执行，升级前请先备份 `data/crm.db`。
 
+## 未发布（线索公海 · 一期）
+
+**只做了 A · CRM 线索公海；B · 官网真实商业线索池仍按 `docs/20` 第 13 节二~四期待执行。**
+
+### 新增
+
+- **线索公海**：`leads.owner_id IS NULL` 即在池中，不新增池主表；池状态与业务状态机
+  `new/contacted/qualified/converted/invalid` 正交，不污染现有流转
+- `leads` 增 `pool_at` / `pool_reason` / `pool_count`，新增 `pool_events` 审计表与
+  `idx_lead_pool` 索引；`api_clients` 增 `pool_on_missing`（默认 1，未指定负责人时入公海）
+- 核心模块 `src/pool.js`：可见范围 `poolWhere()`（独立于 `scopeFilter()`，否则 `self` 角色
+  看不到无主线索）、规则快照、原子条件更新领取、主动放回 / 经理分配 / 强制回收、
+  双时钟回收 janitor（每小时一次，启动 20 秒后先跑一次）
+- 7 个接口：`GET /api/leads/pool`、`/pool/rules`、`/pool/events`，
+  `POST /api/leads/pool/:id/claim`、`/assign`、`/reclaim`，`POST /api/leads/:id/release`
+- 前端「公共池」页：池列表、领取 / 分配、经理强制回收（二次确认）、规则提示、审计轨迹；
+  工作台卡片、线索页入口与「放回公海」按钮；API 接入管理可配「缺省入池 / 缺省报错」
+- 9 项 `pool.*` 规则纳入设置中心（系统设置 → 公共池规则），改完即时生效，不重启；
+  启动横幅打印当前生效的规则摘要
+- 验收脚本 `scripts/pool-check.mjs`：TC-01~TC-10、TC-11a~11r、TC-12a~12h，覆盖
+  SQLite 新库、SQLite 老库补列、PostgreSQL 幂等迁移、真实 HTTP 冒烟（含外部 API 入池全链路）
+
+### 变更
+
+- 外部线索 API 未指定负责人且未配默认负责人时，由「直接报错」改为入公海（可显式关闭）
+- `POST /api/v1/leads/batch` 由 `forEach(async ...)` 改 `for...of`，保证异步写入与统计在响应前完成
+- `PATCH /api/v1/leads/:id` 更新负责人传 `allowPool:false`，不再静默放回池
+- 池中线索禁止绕过领取直接改状态 / 改字段 / 记跟进 / 删除，统一返回 `POOL_NOT_IN_POOL`
+- `idx_lead_pool` 从建表 DDL 移到 `ensurePoolIndexes()`（补列之后），修复老库升级报
+  `no such column: pool_at`；janitor 扫描条件补 `claim_at IS NOT NULL`，避免历史线索整批误回池
+
+### 验证
+
+- `npm run test:pool`（`node scripts/pool-check.mjs`）：**3/3 场景、44 条断言 0 失败**
+  （含 PostgreSQL 真实幂等迁移、外部线索 API 入池的端到端 HTTP 验证）
+- 全量 `node --check`：后端 / 脚本 / 前端 JS 均通过
+- 执行期口径调整（双时钟与保护期冲突、索引时序等 6 条）已逐条登记在
+  `docs/20-公共池设计方案.md` 的 v4 变更记录，**未静默改设计**
+
 ## 2.11.0
 
 **试用转化改造：从"给个账号"改成"一条被设计的路径"**

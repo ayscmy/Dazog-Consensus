@@ -15,6 +15,7 @@ const NAV = [
     group: '客户与销售',
     items: [
       { key: 'leads', label: '线索', icon: 'lead', module: 'lead' },
+      { key: 'pool', label: '公共池', icon: 'pool', module: 'lead' },
       { key: 'accounts', label: '客户', icon: 'account', module: 'account' },
       { key: 'opportunities', label: '商机', icon: 'opp', module: 'opportunity' },
       { key: 'quotations', label: '报价', icon: 'quote', module: 'quotation' },
