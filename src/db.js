@@ -737,10 +737,11 @@ CREATE TABLE IF NOT EXISTS trial_accounts (
   name        TEXT,
   company     TEXT,
   source      TEXT NOT NULL DEFAULT 'website',
-  days        INTEGER NOT NULL DEFAULT 7,
+  days        INTEGER NOT NULL DEFAULT 14,
   expires_at  TEXT NOT NULL,
   status      TEXT NOT NULL DEFAULT 'active',
   created_at  TEXT NOT NULL,
+  frozen_at   TEXT,
   purged_at   TEXT,
   purge_note  TEXT
 );
@@ -766,6 +767,8 @@ export async function migrate() {
  */
 const COLUMN_PATCHES = [
   ['api_clients', 'domain_whitelist', "TEXT NOT NULL DEFAULT ''"],
+  // 到期不再立即删：先转 frozen 保留数据，满保留期才物理回收
+  ['trial_accounts', 'frozen_at', 'TEXT'],
 ];
 
 async function ensureColumns() {

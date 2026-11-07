@@ -3,16 +3,23 @@ import { all, one, run, tx, nowIso, idOf } from './db.js';
 import { hashPassword } from './password.js';
 
 /**
- * 试用账号：官网注册会员后自动开通，7 天到期自动回收。
+ * 试用账号：官网注册会员后自动开通，14 天试用 → 到期冻结 → 再满 30 天才回收。
  *
  * 形态：每个试用会员独占一个公司级组织（挂在「试用中心」下），角色 trial
  * （scope=org，只能看自己这棵子树），互不可见、互不干扰。
+ *
+ * 为什么到期不直接删：试用期里用户录的是真实客户和单子，删掉等于告诉他
+ * 「你花的时间白费了」——这会反过来抑制录入，而录入恰恰是付费的前提。
+ * 所以到期先转 frozen（能登录看、不能改），数据原样保留，付费即时恢复；
+ * 只有超过保留期仍无动作，才真正回收。
  *
  * 开通与回收由官网通过 /api/internal/trial* 调用；本文件另带一个每小时跑一次的
  * 兜底清理，即使官网挂了也不会留下永不过期的账号。
  */
 
-export const TRIAL_DAYS = Math.max(1, Number(process.env.TRIAL_DAYS || 7));
+export const TRIAL_DAYS = Math.max(1, Number(process.env.TRIAL_DAYS || 14));
+/** 到期后数据保留天数（冻结期），期间付费可原样恢复 */
+export const TRIAL_RETAIN_DAYS = Math.max(1, Number(process.env.TRIAL_RETAIN_DAYS || 30));
 export const TRIAL_ROOT_NAME = process.env.TRIAL_ROOT_NAME || '试用中心';
 export const TRIAL_URL = (process.env.TRIAL_URL || 'https://crm.aiemy.com').replace(/\/+$/, '');
 
@@ -51,6 +58,99 @@ const TRIAL_PRODUCTS = [
   { code: 'SRV', name: '实施与培训服务', category: '服务', unit: '人天', price: 2600, cost: 1800 },
   { code: 'IOT', name: '工业数据网关', category: '硬件', unit: '台', price: 8800, cost: 6200 }
 ];
+
+/* ==================== 示例数据 ==================== */
+
+/**
+ * 试用组织预置的示例业务：3 个客户、5 条线索、2 个商机、1 份报价。
+ *
+ * 为什么必须预置：空组织等于让用户在 14 天里先花半天录入，才第一次看到
+ * 这个系统"长什么样"。绝大多数人不会为一个还没看懂的东西做数据迁移。
+ * 给了样例，他 3 分钟就能看懂「线索 → 商机 → 报价」这条主线。
+ *
+ * 标记方式：统一 source = '示例'，界面照常显示为「来源：示例」，
+ * 用户想清空时按来源筛出来删即可，不需要额外的隐藏字段。
+ */
+const SAMPLE_ACCOUNTS = [
+  { name: '苏州精工机械有限公司', short: '苏州精工', industry: '装备制造', scale: '500-1000人', region: '华东', level: 'A', phone: '0512-6688xxxx' },
+  { name: '宁波华翔电子股份有限公司', short: '宁波华翔', industry: '电子制造', scale: '1000人以上', region: '华东', level: 'B', phone: '0574-8899xxxx' },
+  { name: '合肥新能电气有限公司', short: '合肥新能', industry: '新能源', scale: '100-500人', region: '华中', level: 'B', phone: '0551-6677xxxx' }
+];
+
+const SAMPLE_LEADS = [
+  { name: '无锡恒力传动数字化改造', contact: '王主任', title: '生产部', phone: '138****1024', status: 'new', demand: '想先看看 MES 能不能管到工序级报工', budget: '50-100万', next: '电话初访' },
+  { name: '杭州锐驰汽配车间看板', contact: '李经理', title: '信息部', phone: '139****2048', status: 'contacted', demand: '已有 ERP，缺车间数据采集', budget: '30-50万', next: '约现场调研' },
+  { name: '常州德胜精工 MES 选型', contact: '张总', title: '总经理', phone: '137****4096', status: 'qualified', demand: '今年预算已批，正在比 3 家', budget: '60-80万', next: '下周三方案汇报' },
+  { name: '苏州精工机械 MES 一期', contact: '陈厂长', title: '厂长', phone: '136****8192', status: 'converted', demand: '已立项，先做装配车间', budget: '60-80万', next: '已转客户', accountIdx: 0 },
+  { name: '嘉兴申菱环境仓储改造', contact: '周主管', title: '物流部', phone: '135****3072', status: 'new', demand: '成品库经常发错货', budget: '待确认', next: '加微信发资料' }
+];
+
+async function seedSampleData(orgId, userId, nowStr) {
+  const day = (n) => new Date(Date.now() + n * 86400_000).toISOString();
+  const date = (n) => day(n).slice(0, 10);
+
+  // 1. 客户
+  const accountIds = [];
+  for (const a of SAMPLE_ACCOUNTS) {
+    const r = await run(
+      `insert into accounts(name,short_name,industry,scale,region,level,owner_id,org_id,phone,source,status,remark,created_by,created_at,updated_at)
+       values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      a.name, a.short, a.industry, a.scale, a.region, a.level, userId, orgId, a.phone,
+      '示例', 'active', '这是一条示例数据，可随时删除', userId, nowStr, nowStr
+    );
+    accountIds.push(idOf(r));
+  }
+
+  // 2. 线索（已转化的那条挂到对应客户上）
+  const leadIds = [];
+  for (let i = 0; i < SAMPLE_LEADS.length; i++) {
+    const l = SAMPLE_LEADS[i];
+    const r = await run(
+      `insert into leads(name,contact_name,contact_title,contact_phone,source,industry,region,demand,budget,
+         next_action,next_date,status,score,owner_id,org_id,account_id,created_at,updated_at)
+       values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      l.name, l.contact, l.title, l.phone, '示例', null, null, l.demand, l.budget,
+      l.next, date(1 + i), l.status, l.status === 'qualified' ? 80 : l.status === 'contacted' ? 50 : 20,
+      userId, orgId, l.accountIdx != null ? accountIds[l.accountIdx] : null, nowStr, nowStr
+    );
+    leadIds.push(idOf(r));
+  }
+
+  // 3. 商机（一条已到方案阶段，直接能看到报价入口）
+  const oppA = await run(
+    `insert into opportunities(name,account_id,lead_id,amount,stage,probability,expected_date,owner_id,org_id,source,created_by,created_at,updated_at)
+     values(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    '苏州精工机械 MES 一期', accountIds[0], leadIds[3], 680000, 'proposal', 60, date(30),
+    userId, orgId, '示例', userId, nowStr, nowStr
+  );
+  const oppAId = idOf(oppA);
+
+  await run(
+    `insert into opportunities(name,account_id,amount,stage,probability,expected_date,owner_id,org_id,source,created_by,created_at,updated_at)
+     values(?,?,?,?,?,?,?,?,?,?,?,?)`,
+    '宁波华翔 WMS 仓储升级', accountIds[1], 360000, 'needs', 30, date(75),
+    userId, orgId, '示例', userId, nowStr, nowStr
+  );
+
+  // 4. 一份草稿报价（no 全局唯一，带 orgId 前缀）
+  const quoteNo = `SAMPLE-${orgId}-001`;
+  const qRow = await run(
+    `insert into quotations(no,opportunity_id,account_id,version,amount,list_amount,discount_rate,cost,
+       valid_until,status,remark,created_by,org_id,created_at,updated_at)
+     values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    quoteNo, oppAId, accountIds[0], 1, 680000, 680000, 0, 420000,
+    date(15), 'draft', '示例报价：MES 一期 + 实施服务', userId, orgId, nowStr, nowStr
+  );
+  const quoteId = idOf(qRow);
+
+  await run(
+    `insert into quotation_items(quotation_id,seq,product_id,name,spec,unit,qty,list_price,unit_price,amount,cost,is_custom)
+     values(?,?,?,?,?,?,?,?,?,?,?,?)`,
+    quoteId, 1, null, 'MES 制造执行系统', '标准版', '套', 1, 680000, 680000, 680000, 420000, 0
+  );
+
+  return { accounts: accountIds.length, leads: leadIds.length, opportunities: 2, quotations: 1 };
+}
 
 /* ==================== 组织 ==================== */
 
@@ -137,7 +237,18 @@ export async function createTrialAccount(input) {
       );
     }
 
-    // 4. 开通记录
+    // 4. 示例业务数据（客户/线索/商机/报价），让登录第一眼就有内容
+    let seeded = null;
+    if (input.sample !== false) {
+      try {
+        seeded = await seedSampleData(orgId, userId, nowStr);
+      } catch (e) {
+        // 示例数据只是降低上手成本，失败不该挡住开通
+        seeded = { error: e.message.slice(0, 120) };
+      }
+    }
+
+    // 5. 开通记录
     const accRow = await run(
       `insert into trial_accounts(user_id,org_id,username,email,name,company,source,days,expires_at,status,created_at)
        values(?,?,?,?,?,?,?,?,?,?,?)`,
@@ -159,10 +270,62 @@ export async function createTrialAccount(input) {
       password,
       expiresAt,
       days: v.days,
+      sample: seeded,
       url: TRIAL_URL,
       loginUrl: `${TRIAL_URL}/login.html`
     };
   });
+}
+
+/* ==================== 冻结 ==================== */
+
+/**
+ * 冻结一个到期的试用账号：人是登不上了，但组织、客户、报价、合同全都留着。
+ *
+ * 只改两处：users.status = 'frozen'（登录闸门认这个值）、trial_accounts.status = 'frozen'。
+ * 不动任何业务数据——这正是它和 purge 的根本区别。
+ *
+ * 为什么不删会话也够：frozen 用户下次带旧 Cookie 进来时，dispatch 会先查用户状态，
+ * 非 active 直接拒绝。这里顺手删掉更干净，省得留一堆无效 token。
+ */
+export async function freezeTrialAccount(accountId, reason = '试用到期') {
+  const acc = await one('select * from trial_accounts where id = ?', accountId);
+  if (!acc) throw new Error('试用记录不存在');
+  if (acc.status === 'frozen') return { accountId, already: true, frozen: true, note: '已冻结' };
+  if (acc.status === 'purged') return { accountId, already: true, frozen: false, note: '已回收' };
+
+  const now = nowIso();
+  const userId = Number(acc.user_id || 0);
+
+  if (userId) {
+    await run("update users set status = 'frozen' where id = ?", userId);
+    await run('delete from sessions where user_id = ?', userId);
+  }
+  await run(
+    "update trial_accounts set status = 'frozen', frozen_at = ? where id = ?",
+    now, accountId
+  );
+
+  try {
+    await run(
+      `insert into audit_logs(user_id,user_name,action,target_type,target_id,detail,ip,created_at)
+       values(?,?,?,?,?,?,?,?)`,
+      null, '系统', 'trial.freeze', 'user', userId,
+      `冻结试用账号 ${acc.username || userId}：${reason}，数据保留 ${TRIAL_RETAIN_DAYS} 天`,
+      '', now
+    );
+  } catch { /* 审计失败不影响冻结 */ }
+
+  return { accountId, frozen: true, retainDays: TRIAL_RETAIN_DAYS };
+}
+
+/** 冻结满保留期、可以真删的账号 */
+export async function listPurgeable(limit = 50) {
+  const cut = new Date(Date.now() - TRIAL_RETAIN_DAYS * 86400_000).toISOString();
+  return await all(
+    "select * from trial_accounts where status = 'frozen' and frozen_at is not null and frozen_at < ? order by frozen_at limit " + Number(limit),
+    cut
+  );
 }
 
 /* ==================== 回收 ==================== */
@@ -320,21 +483,37 @@ export async function findTrial(accountId) {
   return await one('select * from trial_accounts where id = ?', accountId);
 }
 
-/** 回收所有已过期的试用账号（官网挂了也能靠这里兜底） */
+/**
+ * 兜底推进（官网挂了也能靠这里跑）：两步，顺序不能反。
+ *   1. active 且已过期 → 冻结（只停登录，数据留着）
+ *   2. frozen 且超过保留期 → 才真正回收
+ */
 export async function sweepExpired(limit = 50) {
-  const rows = await all(
+  const done = [];
+
+  const expiring = await all(
     "select * from trial_accounts where status = 'active' and expires_at < ? order by expires_at limit " + Number(limit),
     nowIso()
   );
-  const done = [];
-  for (const r of rows) {
+  for (const r of expiring) {
     try {
-      const out = await purgeTrialAccount(r.id, '试用到期（定时清理）');
-      done.push({ id: r.id, username: r.username, ...out });
+      const out = await freezeTrialAccount(r.id, '试用到期（定时冻结）');
+      done.push({ id: r.id, username: r.username, action: 'freeze', ...out });
     } catch (e) {
-      done.push({ id: r.id, username: r.username, error: e.message });
+      done.push({ id: r.id, username: r.username, action: 'freeze', error: e.message });
     }
   }
+
+  const stale = await listPurgeable(limit);
+  for (const r of stale) {
+    try {
+      const out = await purgeTrialAccount(r.id, `冻结满 ${TRIAL_RETAIN_DAYS} 天（定时回收）`);
+      done.push({ id: r.id, username: r.username, action: 'purge', ...out });
+    } catch (e) {
+      done.push({ id: r.id, username: r.username, action: 'purge', error: e.message });
+    }
+  }
+
   return done;
 }
 
@@ -343,8 +522,10 @@ export function startTrialJanitor(intervalMs = 3600_000) {
   const tick = async () => {
     try {
       const done = await sweepExpired();
-      if (done.length) {
-        console.log(`[trial] 已回收 ${done.length} 个过期试用账号：${done.map((d) => d.username || d.id).join(', ')}`);
+      const f = done.filter((d) => d.action === 'freeze' && !d.error).length;
+      const p = done.filter((d) => d.action === 'purge' && !d.error).length;
+      if (f || p) {
+        console.log(`[trial] 冻结 ${f} 个到期账号，回收 ${p} 个超保留期账号`);
       }
     } catch (e) {
       console.error('[trial] 清理失败：', e.message);

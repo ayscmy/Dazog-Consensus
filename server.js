@@ -9,7 +9,7 @@ import { dispatch, HttpError, parseCookies } from './src/http.js';
 import { getSession, createSession, COOKIE } from './src/auth.js';
 import { DEMO_MODE, demoAccount } from './src/demo.js';
 import { findQuoteByToken, renderSheetHtml } from './src/doc/quote-sheet.js';
-import { startTrialJanitor, TRIAL_DAYS, TRIAL_URL } from './src/trial.js';
+import { startTrialJanitor, TRIAL_DAYS, TRIAL_RETAIN_DAYS, TRIAL_URL } from './src/trial.js';
 import './src/routes/index.js';
 
 const PORT = Number(process.env.PORT || 8081);
@@ -177,7 +177,7 @@ server.listen(PORT, HOST, () => {
   console.log(`  本机访问   http://localhost:${PORT}`);
   console.log(`  局域网访问 http://<本机IP>:${PORT}`);
   console.log(`  数据库     ${DB_LABEL}`);
-  console.log(`  试用账号   ${process.env.TRIAL_API_KEY ? `已开启（${TRIAL_DAYS} 天 · ${TRIAL_URL}）` : '未配置 TRIAL_API_KEY，官网无法自助开通'}`);
+  console.log(`  试用账号   ${process.env.TRIAL_API_KEY ? `已开启（${TRIAL_DAYS} 天试用 → 冻结保留 ${TRIAL_RETAIN_DAYS} 天 → 回收）` : '未配置 TRIAL_API_KEY，官网无法自助开通'}`);
   console.log('');
 });
 

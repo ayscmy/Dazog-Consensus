@@ -268,6 +268,12 @@ export async function login(username, password, ip, ua) {
       code: 'leaving'
     };
   }
+  if (u.status === 'frozen') {
+    return {
+      error: '试用期已结束，账号暂时停用——但你的客户、报价、合同数据都完整保留着，随时可以恢复继续用。',
+      code: 'frozen'
+    };
+  }
   if (u.status !== 'active') return {
     error: '账号已停用，请联系系统管理员',
     code: 'disabled'

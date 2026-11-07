@@ -1,6 +1,9 @@
 import { timingSafeEqual } from 'node:crypto';
 import { GET, POST, HttpError, bad, notFound } from '../http.js';
-import { createTrialAccount, purgeTrialAccount, findTrial, sweepExpired, TRIAL_DAYS } from '../trial.js';
+import {
+  createTrialAccount, freezeTrialAccount, purgeTrialAccount, findTrial,
+  sweepExpired, TRIAL_DAYS, TRIAL_RETAIN_DAYS
+} from '../trial.js';
 
 /**
  * 内部接口：只给官网（同一台机器上的 8099）调用，用来开通与回收试用账号。
@@ -59,6 +62,17 @@ POST('/api/internal/trial/sweep', async (ctx) => {
   return { ok: true, count: done.length, items: done };
 }, { auth: false });
 
+/** 冻结（到期默认动作）：停登录、留数据。幂等 */
+POST('/api/internal/trial/:id/freeze', async (ctx) => {
+  guard(ctx);
+  const id = Number(ctx.params.id);
+  if (!Number.isInteger(id) || id <= 0) throw bad('试用记录 ID 不正确');
+  const acc = await findTrial(id);
+  if (!acc) throw notFound('试用记录不存在');
+  const out = await freezeTrialAccount(id, String((ctx.body && ctx.body.reason) || '试用到期'));
+  return { ok: true, ...out, status: 'frozen', retainDays: TRIAL_RETAIN_DAYS };
+}, { auth: false });
+
 /** 回收（幂等：已回收的再调一次也返回 200） */
 POST('/api/internal/trial/:id/purge', async (ctx) => {
   guard(ctx);
@@ -73,7 +87,7 @@ POST('/api/internal/trial/:id/purge', async (ctx) => {
 /** 健康检查：官网启动时可用来确认链路通不通（必须排在 :id 之前，否则会被当成 id） */
 GET('/api/internal/trial/ping', async (ctx) => {
   guard(ctx);
-  return { ok: true, days: TRIAL_DAYS, at: new Date().toISOString() };
+  return { ok: true, days: TRIAL_DAYS, retainDays: TRIAL_RETAIN_DAYS, at: new Date().toISOString() };
 }, { auth: false });
 
 /** 查询状态 */
@@ -93,6 +107,7 @@ GET('/api/internal/trial/:id', async (ctx) => {
       days: acc.days,
       expiresAt: acc.expires_at,
       createdAt: acc.created_at,
+      frozenAt: acc.frozen_at || null,
       purgedAt: acc.purged_at
     }
   };

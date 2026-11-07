@@ -1,5 +1,5 @@
-AIEMY 个人学习许可协议 v1.0
-AIEMY Personal Learning License v1.0
+AIEMY 社区版许可协议 v2.0
+AIEMY Community License v2.0
 
 Copyright (c) 2026 AIEMY. All rights reserved.
 版权所有 (c) 2026 AIEMY，保留所有权利。
@@ -11,46 +11,55 @@ Copyright (c) 2026 AIEMY. All rights reserved.
 一、许可范围
 
 在遵守本协议全部条款的前提下，AIEMY（以下称"著作权人"）授予你一项
-有限的、非独占的、不可转让、不可再许可的许可，允许你：
+免费的、非独占的、不可转让、不可再许可的许可，允许你：
 
   1. 下载、安装、运行本软件；
   2. 阅读、学习、研究本软件的源代码与设计思路；
-  3. 为个人学习或研究目的修改源代码，并在本地运行修改后的版本；
-  4. 在非营利教学场景中，以讲解、演示为目的引用本软件的片段，
+  3. 修改源代码，并在自有环境中运行修改后的版本；
+  4. **在自有组织内部用于实际经营管理**，包括客户管理、销售管理、
+     报价与合同管理、回款管理等日常业务；
+  5. 在非营利教学场景中，以讲解、演示为目的引用本软件的片段，
      但须注明出处。
 
-上述许可仅限**个人学习、研究与非营利教学**用途。
+二、免费额度
 
-二、禁止事项
+上述免费许可适用于**在职用户不超过 10 个**的部署。
+
+  - "在职用户"指状态为启用、可登录本系统的账号；已停用、已离职
+    的账号不计入。
+  - 若你的组织在职用户超过 10 个，需要事先取得商业授权（见第七条）。
+  - 试用账号、演示账号不计入该额度。
+
+三、禁止事项
 
 未经著作权人事先书面授权，你不得：
 
-  1. **将本软件用于任何商业用途**。商业用途包括但不限于：
+  1. **将本软件作为商品或服务对外提供**。包括但不限于：
      a) 销售、出租、许可本软件或其衍生作品；
      b) 以 SaaS、私有化部署、代运维、技术支持等任何形式
-        向第三方提供收费服务；
+        向第三方提供收费或免费的服务；
      c) 将本软件（含修改后的版本）集成进商业产品、
         交付给客户的项目或对外销售的系统；
-     d) 在企业内部用于实际生产经营活动（含客户管理、销售管理、
-        合同与回款管理等业务流程）；
-     e) 用于承接外包、项目交付、投标方案，或以此为卖点获取商业利益。
-  2. 移除、隐藏、篡改本软件中的版权声明、作者标识或本协议文本。
-  3. 将本软件或其衍生作品以任何形式再授权、转售、分发用于上述商业目的。
-  4. 以本软件的名义提供付费培训、付费咨询或认证服务。
+     d) 以本软件为基础承接外包、项目交付、投标方案，
+        或以此为卖点获取商业利益；
+     e) 以本软件的名义提供付费培训、付费咨询或认证服务。
+  2. 超过第二条规定的免费额度使用而不取得商业授权。
+  3. 移除、隐藏、篡改本软件中的版权声明、作者标识或本协议文本。
+  4. 将本软件或其衍生作品以任何形式再授权、转售、分发。
   5. 将本软件的整体或实质性部分，作为本人/本单位作品提交、发布
      或申请知识产权。
 
-三、必须保留
+四、必须保留
 
-任何被允许的复制、修改与引用，都必须完整保留本协议文本，
+任何被允许的复制、修改与部署，都必须完整保留本协议文本，
 以及源代码文件中已有的版权声明与作者信息。
 
-四、衍生作品
+五、衍生作品
 
 你基于本软件创作的修改版本、衍生作品，同样受本协议约束，
-不得因修改而绕开第二条的任何限制。
+不得因修改而绕开第二条的额度限制与第三条的任何限制。
 
-五、免责声明
+六、免责声明
 
 本软件按"现状"提供，不附带任何明示或默示的保证，
 包括但不限于适销性、特定用途适用性与不侵权的保证。
@@ -60,39 +69,54 @@ Copyright (c) 2026 AIEMY. All rights reserved.
 使用本软件即表示你已阅读并同意本协议全部条款。
 如不同意，请立即停止使用并删除全部副本。
 
-六、商业授权
+七、商业授权
 
-如需商业使用，必须事先取得 AIEMY 的书面商业授权。
-未取得授权而进行商业使用的，著作权人保留追究法律责任的权利。
+如需以下任一情形，必须事先取得 AIEMY 的书面商业授权：
 
-七、协议变更说明
+  - 在职用户超过 10 个；
+  - 将本软件用于对外提供服务、交付客户项目或集入商业产品；
+  - 需要去除版权标识，或需要书面授权证明。
 
-本项目的早期版本曾以 AGPL-3.0 发布。自 2026-11-01 起，
-新版本改用本协议（个人学习许可）。
+未取得授权而超出本协议范围使用的，著作权人保留追究法律责任的权利。
 
-  - 对在变更**之前**已按 AGPL-3.0 获得本软件副本的使用者，
-    其就该副本享有的 AGPL-3.0 权利不因本次变更而消灭；
-  - 对在变更**之后**获取的版本，一律适用本协议。
+八、协议变更说明
+
+本项目的授权条款历经两次变更，历史版本的权利不受影响：
+
+  - 2026-11-01 之前：以 AGPL-3.0 发布。在该日期前获得副本的使用者，
+    其就该副本享有的 AGPL-3.0 权利不因后续变更而消灭。
+  - 2026-11-01 起：改为「AIEMY 个人学习许可 v1.0」，
+    仅限个人学习、研究与非营利教学。
+  - 2026-11-07 起：改为本协议「社区版许可 v2.0」，
+    允许 10 个在职用户以内在自有组织内免费使用（含经营用途）。
+
+  对在上述各变更**之后**获取的版本，适用获取当时有效的协议版本。
 
 ────────────────────────────────────────────────────────────
 
 【English Summary】
 
-This software is source-available for PERSONAL LEARNING AND
-NON-COMMERCIAL RESEARCH ONLY.
+This software is source-available under the AIEMY Community License.
 
-You may read, study, run, and modify the source code for personal
-learning, research, or non-profit teaching, provided that this
-license and all copyright notices are retained.
+You MAY, free of charge:
+  - read, study, run, and modify the source code;
+  - use it inside your own organization for real business operations
+    (CRM, quotations, contracts, receivables), provided that the number
+    of active users does not exceed 10;
+  - quote excerpts for non-profit teaching with attribution.
 
 You may NOT, without prior written permission from AIEMY:
-  - use this software, or any derivative, for any commercial purpose,
-    including selling, licensing, SaaS/hosting services, paid support,
-    embedding into commercial products or client deliverables, or
-    internal production use in business operations;
+  - provide this software, or any derivative, as a product or service
+    to third parties (SaaS, hosting, managed operations, paid support,
+    client deliverables, outsourcing, bidding);
+  - exceed the 10-active-user limit;
   - remove or alter any copyright notices;
   - sublicense or redistribute for any of the above purposes;
   - offer paid training or consulting under this project's name.
+
+"Active users" means enabled accounts that can log in; disabled and
+departed accounts are not counted. Trial and demo accounts are not
+counted.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
@@ -100,12 +124,13 @@ DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
 
 For commercial licensing, contact AIEMY.
 
-Note: earlier versions of this project were released under AGPL-3.0.
-Copies obtained under AGPL-3.0 before 2026-11-01 retain their
-AGPL-3.0 rights; versions obtained afterwards are governed by this
-license.
+License history:
+  - Before 2026-11-01: AGPL-3.0. Copies obtained before that date
+    retain their AGPL-3.0 rights.
+  - 2026-11-01: AIEMY Personal Learning License v1.0 (personal study only).
+  - 2026-11-07: AIEMY Community License v2.0 (this document).
 
 ────────────────────────────────────────────────────────────
 
 AIEMY
-2026-11-01
+2026-11-07
