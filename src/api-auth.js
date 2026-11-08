@@ -29,6 +29,14 @@ export const SCOPES = [{
   key: 'lead:write',
   label: '写入线索',
   desc: '新建、更新、写跟进、批量导入'
+}, {
+  key: 'account:read',
+  label: '读取客户',
+  desc: '查询客户档案列表与详情'
+}, {
+  key: 'account:write',
+  label: '写入客户',
+  desc: '新建、更新客户档案'
 }];
 const KEY_PREFIX = 'crm_';
 export const sha256 = s => createHash('sha256').update(String(s)).digest('hex');

@@ -25,6 +25,17 @@
 - **铁律（用户 2026-11-08 新增）**：默认全部是本地开发环境，未明确「上线」不推 Gitee / GitHub、不上传线上系统；本轮**仅本地提交**（一~三期已推送不追溯、不回滚）
 - **落实铁律 · 验收脚本脱敏**：`scripts/pool-check.mjs` 的 `pg` 场景原会连项目 `.env` 的生产 PostgreSQL 跑 `migrate()`，改为纯 DDL 静态断言（不 `import db.js`、不连库），主入口同时给它注入隔离 SQLite 变量作纵深防御；真实 PG 幂等迁移改属显式「上线 / 运维窗口」操作。回归仍 `4/4 场景通过、0 条用例失败`（v4 第 18 条）
 
+### 客户库双向同步（CRM 侧）
+
+- 新增对外开放 `accounts` v1 端点（`src/routes/accounts-api.js`），供官网客户数据库双向同步：镜像 `leads-api.js` 范式（`scopeSql` / `inScope` / `accountView` / `auditApi`）
+- `POST /api/v1/accounts`：创建 + `external_id` 幂等（命中返回 `duplicated:true`、HTTP 200；新建 201）；`name` 空抛 400；`org_id` 取 `client.org_id`（兜底 `apiInOrg`）
+- `GET /api/v1/accounts`：增量 `since`（`updated_at > ? or ? = ''`），返回 `{items,nextSince,count}`；`GET /api/v1/accounts/:id` / `PATCH /api/v1/accounts/:id` 详情与局部更新
+- `src/api-auth.js` 新增 `account:read` / `account:write` 作用域；`src/routes/index.js` 挂载 `accounts-api.js`
+- `accounts` 表加 `external_id TEXT` + `idx_acc_external` 唯一索引（`src/db.js` DDL 与 `COLUMN_PATCHES` 老库兜底）
+- 防回环：官网推来的 `external_id='dir:<id>'` 命中即 `duplicated`，绝不重复建；官网拉取回流的 `dir:` 行只更新对应 directory 行的 `crm_account_id`，不新建 `crm_sync` 行
+- 验收：`scripts/accounts-check.mjs`（新建）本地隔离 SQLite **12/12 通过**（TC-A1 创建+幂等、A2 作用域隔离、A3 增量拉取、A4 dir: 防重复）
+- 设计口径：`docs/21` §9 v2
+
 ### 新增
 
 - **线索公海**：`leads.owner_id IS NULL` 即在池中，不新增池主表；池状态与业务状态机

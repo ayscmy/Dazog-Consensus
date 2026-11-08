@@ -18,6 +18,7 @@ import './attachments.js';
 import './admin.js';
 // 对外线索 API（v1）与它的开通授权
 import './leads-api.js';
+import './accounts-api.js';
 import './api-admin.js';
 // 官网开通/回收试用账号的内部接口
 import './trial-api.js';

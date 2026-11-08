@@ -322,6 +322,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   website      TEXT,
   address      TEXT,
   source       TEXT,
+  external_id  TEXT,
   status       TEXT NOT NULL DEFAULT 'active',
   remark       TEXT,
   created_by   INTEGER,
@@ -329,6 +330,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   updated_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_acc_org ON accounts(org_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_acc_external ON accounts(external_id);
 CREATE INDEX IF NOT EXISTS idx_acc_owner ON accounts(owner_id);
 
 CREATE TABLE IF NOT EXISTS contacts (
@@ -807,6 +809,8 @@ const COLUMN_PATCHES = [
   ['leads', 'pool_reason', 'TEXT'],
   ['leads', 'pool_count', 'INTEGER NOT NULL DEFAULT 0'],
   ['api_clients', 'pool_on_missing', 'INTEGER NOT NULL DEFAULT 1'],
+  // 客户库双向同步（见 docs/21 第 9 节）：新库已写进 CREATE TABLE，老库在这里补
+  ['accounts', 'external_id', 'TEXT'],
 ];
 
 async function ensureColumns() {
