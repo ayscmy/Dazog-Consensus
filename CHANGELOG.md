@@ -3,9 +3,18 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：`主版本.次版本.修订号`。
 数据库结构变更一律通过 `src/db.js` 的 `migrate()` 增量执行，升级前请先备份 `data/crm.db`。
 
-## 未发布（线索公海 · 一期 / 试用联动 · 二期）
+## 未发布（线索公海 · 一期 / 试用联动 · 二期 / 官网真实商业线索池 · 三期）
 
-**一期做了 A · CRM 线索公海，二期做了试用联动；B · 官网真实商业线索池仍按 `docs/20` 第 13 节三~四期待执行。**
+**一期做了 A · CRM 线索公海，二期做了试用联动；三期打通 B · 官网真实商业线索池的「通道 1 · 在线试用投递」；四期「下载版 API 拉取 / 推送」仍按 `docs/20` 第 13 节待执行。**
+
+### 三期 · 官网真实商业线索池（CRM 侧）
+
+- 新增内部接口 `POST /api/internal/trial/:id/pool-lead`（`src/routes/trial-api.js`）：`X-Internal-Key` + 回环 IP 校验；`claim_id` 必填，`external_id` 由服务端按 `pool:<claim_id>` 拼接（幂等，忽略官网传值）；重复投递返回 `duplicated:true`，不新增线索
+- 官网领取的线索落为**会员私有线索**：`owner_id=试用用户`、`org_id=试用组织`、`source='官网公共池'`，`pool_at` / `pool_reason` 不填，**不进 CRM 公海**
+- 字段映射：CRM `leads` 无 `company` 列，公司名并入 `name`（`title · company`）；`contact→contact_name`、`contactPhone→contact_phone`
+- `guard()` 的 401 / 403 补 `INTERNAL_KEY_INVALID`，新增 `TRIAL_NOT_FOUND` / `TRIAL_FROZEN` 业务码；`frozen` / `revoked` 试用账号拒绝投递
+- 回归：`npm run test:pool` 4/4 场景通过、0 条用例失败；官网 `scripts/pool-check.mjs` 87/87、`scripts/seo-check.mjs` 68/68
+- 设计口径：CRM `docs/20` v4 变更记录第 13~15 条
 
 ### 新增
 

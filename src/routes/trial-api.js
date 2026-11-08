@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { GET, POST, HttpError, bad, notFound } from '../http.js';
+import { one, run, nowIso, idOf } from '../db.js';
 import {
   createTrialAccount, freezeTrialAccount, purgeTrialAccount, findTrial,
   sweepExpired, TRIAL_DAYS, TRIAL_RETAIN_DAYS
@@ -29,11 +30,12 @@ function guard(ctx) {
   const a = Buffer.from(given);
   const b = Buffer.from(KEY);
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    throw new HttpError(401, '内部密钥不正确');
+    // 设计 docs/20 第 10 节契约只定义一个鉴权失败码，IP 不可信也归到此码
+    throw new HttpError(401, '内部密钥不正确', { code: 'INTERNAL_KEY_INVALID' });
   }
   const ip = clientIp(ctx);
   const okIp = ip === '127.0.0.1' || ip === '::1' || ip === 'localhost' || EXTRA_IPS.includes(ip);
-  if (!okIp) throw new HttpError(403, `来源 IP 不可信：${ip}`);
+  if (!okIp) throw new HttpError(403, `来源 IP 不可信：${ip}`, { code: 'INTERNAL_KEY_INVALID' });
 }
 
 /** 开通 */
@@ -82,6 +84,73 @@ POST('/api/internal/trial/:id/purge', async (ctx) => {
   if (!acc) throw notFound('试用记录不存在');
   const out = await purgeTrialAccount(id, String((ctx.body && ctx.body.reason) || '官网申请回收'));
   return { ok: true, ...out, status: 'purged' };
+}, { auth: false });
+
+/**
+ * 官网商业线索池 · 通道 1 投递（docs/20 第 7 节通道 1 / 官网 docs/11 第 7 节）
+ *
+ * 官网领取成功后调用，把一条真实商业线索写成该试用组织的「私有线索」。
+ * 与对外线索 API 的区别：
+ *   - 走 X-Internal-Key + 回环 IP，不挂登录态、不走 api_clients
+ *   - owner_id = 试用用户，source 固定 '官网公共池'
+ *   - 不填 pool_at / pool_reason：这是私有线索，不进 CRM 公海
+ *   - external_id 由服务端按 'pool:<claim_id>' 拼，不信任官网传值
+ *
+ * 本路由是 5 段，与 4 段的 GET /api/internal/trial/:id 互不干扰；
+ * 与同段数的 :id/freeze、:id/purge 靠末段字面量区分，match() 逐段精确比较。
+ */
+POST('/api/internal/trial/:id/pool-lead', async (ctx) => {
+  guard(ctx);
+  const id = Number(ctx.params.id);
+  if (!Number.isInteger(id) || id <= 0) throw bad('试用记录 ID 不正确');
+
+  const b = ctx.body || {};
+  const claimId = Number(b.claim_id);
+  if (!Number.isInteger(claimId) || claimId <= 0) throw bad('缺少或非法的 claim_id');
+
+  const acc = await findTrial(id);
+  if (!acc) throw new HttpError(404, '试用记录不存在', { code: 'TRIAL_NOT_FOUND' });
+  if (acc.status !== 'active') {
+    // frozen / revoked / purged 一律拒绝，官网据此提示「账号已冻结，恢复后继续」
+    throw new HttpError(409, '试用账号已冻结或回收，恢复后可继续领取', { code: 'TRIAL_FROZEN' });
+  }
+  if (!acc.org_id || !acc.user_id) throw bad('试用账号尚未完成初始化');
+
+  // 幂等键由服务端决定：官网 body 里的 external_id 一律忽略，避免污染命名空间
+  const externalId = `pool:${claimId}`;
+  const dup = await one('select id from leads where external_id = ?', externalId);
+  if (dup) return { ok: true, leadId: dup.id, duplicated: true };
+
+  const now = nowIso();
+  // CRM leads 没有 company 列：公司名并入线索名称，不丢信息
+  const name = [String(b.title || '').trim(), String(b.company || '').trim()]
+    .filter(Boolean).join(' · ') || `官网线索 ${claimId}`;
+  try {
+    const r = await run(
+      `insert into leads(name, external_id, contact_name, contact_phone, source,
+          industry, region, demand, budget, status, score,
+          owner_id, org_id, created_by, created_at, updated_at)
+       values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      name, externalId,
+      String(b.contact || '').trim() || null,
+      String(b.contactPhone || '').trim() || null,
+      '官网公共池',
+      String(b.industry || '').trim() || null,
+      String(b.region || '').trim() || null,
+      String(b.demand || '').trim() || null,
+      String(b.budget || '').trim() || null,
+      'new', 50,
+      acc.user_id, acc.org_id, acc.user_id, now, now
+    );
+    return { ok: true, leadId: idOf(r), duplicated: false };
+  } catch (e) {
+    // 并发重放：uq_lead_external 拦下第二个插入，回查一次仍按幂等成功返回
+    if (/unique|duplicate|uq_lead_external/i.test(String(e?.message || ''))) {
+      const again = await one('select id from leads where external_id = ?', externalId);
+      if (again) return { ok: true, leadId: again.id, duplicated: true };
+    }
+    throw e;
+  }
 }, { auth: false });
 
 /** 健康检查：官网启动时可用来确认链路通不通（必须排在 :id 之前，否则会被当成 id） */
