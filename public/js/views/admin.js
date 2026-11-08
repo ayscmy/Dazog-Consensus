@@ -78,8 +78,9 @@ function statusCell(u) {
 
 /**
  * 用户数用满时的收费说明。
- * 这里不是「报错」，是产品边界：社区版免费但限 10 人，商业用途需要授权。
+ * 这里不是「报错」，是产品边界：社区版 10 人以内免费（含经营用途），超员才需要授权。
  * 所以文案要给清楚三件事——为什么被拦、免费版能做什么、在哪继续。
+ * 口径以 README 的「社区版许可 v2.0」为准，别再写回 v1.0 的「禁止商用」。
  */
 function showUpgrade(d) {
   const limit = d.limit ?? 10;
@@ -96,17 +97,17 @@ function showUpgrade(d) {
         <thead><tr><th>能力</th><th style="width:120px">社区版（免费）</th><th style="width:130px">商业授权</th></tr></thead>
         <tbody>
           <tr style="cursor:default"><td>在职用户数</td><td>最多 ${limit} 个</td><td>不限</td></tr>
-          <tr style="cursor:default"><td>使用场景</td><td>个人学习、研究</td><td>企业内部经营、项目交付</td></tr>
-          <tr style="cursor:default"><td>商业使用</td><td>不允许</td><td>允许</td></tr>
+          <tr style="cursor:default"><td>使用场景</td><td>自有组织内部经营（客户 / 销售 / 合同 / 回款）</td><td>不限场景，含对外交付</td></tr>
+          <tr style="cursor:default"><td>商业使用</td><td>${limit} 人以内允许</td><td>允许</td></tr>
           <tr style="cursor:default"><td>版本更新</td><td>社区自助</td><td>持续更新</td></tr>
           <tr style="cursor:default"><td>技术支持</td><td>—</td><td>包含</td></tr>
         </tbody>
       </table>
 
       <div class="hint" style="margin-top:10px">
-        本项目版权归 <b>AIEMY</b> 所有，社区版仅限个人学习与非营利研究使用；
-        任何商业用途都需先取得商业授权。当前已有 ${current} 个在职成员，
-        如需继续添加，请前往官网了解授权方式。
+        本项目版权归 <b>AIEMY</b> 所有。社区版许可 v2.0：<b>${limit} 个在职用户以内在自有组织内免费使用，含经营用途</b>；
+        超过 ${limit} 人、对外提供服务、转售或交付客户项目需取得商业授权。
+        当前已有 ${current} 个在职成员，如需继续添加，请前往官网了解授权方式。
       </div>`,
     footer: `<button class="btn" data-c>知道了</button>
       <button class="btn btn-primary" data-go>前往官网了解授权</button>`,

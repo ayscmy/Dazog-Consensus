@@ -70,6 +70,11 @@ const TRIAL_PRODUCTS = [
  *
  * 标记方式：统一 source = '示例'，界面照常显示为「来源：示例」，
  * 用户想清空时按来源筛出来删即可，不需要额外的隐藏字段。
+ *
+ * 公共池二期（docs/20 第 3.8 节）：5 条线索里 **3 条归自己、2 条放在公共池**
+ * （`inPool: true`）。挑的是两条 status='new' 且没关联商机的——已经跟进过、
+ * 已确认、已转化的线索不适合当作"待领取"。这样新账号一登录就能在「公共池」
+ * 里看到 2 条可领的示例线索，第一次把「一个人用」推到「加个同事一起用」。
  */
 const SAMPLE_ACCOUNTS = [
   { name: '苏州精工机械有限公司', short: '苏州精工', industry: '装备制造', scale: '500-1000人', region: '华东', level: 'A', phone: '0512-6688xxxx' },
@@ -78,11 +83,13 @@ const SAMPLE_ACCOUNTS = [
 ];
 
 const SAMPLE_LEADS = [
-  { name: '无锡恒力传动数字化改造', contact: '王主任', title: '生产部', phone: '138****1024', status: 'new', demand: '想先看看 MES 能不能管到工序级报工', budget: '50-100万', next: '电话初访' },
+  // 两条 inPool 的线索进公共池：owner_id=NULL，登录即可在「公共池」领取
+  { name: '无锡恒力传动数字化改造', contact: '王主任', title: '生产部', phone: '138****1024', status: 'new', demand: '想先看看 MES 能不能管到工序级报工', budget: '50-100万', next: '电话初访', inPool: true },
   { name: '杭州锐驰汽配车间看板', contact: '李经理', title: '信息部', phone: '139****2048', status: 'contacted', demand: '已有 ERP，缺车间数据采集', budget: '30-50万', next: '约现场调研' },
   { name: '常州德胜精工 MES 选型', contact: '张总', title: '总经理', phone: '137****4096', status: 'qualified', demand: '今年预算已批，正在比 3 家', budget: '60-80万', next: '下周三方案汇报' },
+  // converted 这条关联了商机与报价（leadIds[3]），必须保持私有
   { name: '苏州精工机械 MES 一期', contact: '陈厂长', title: '厂长', phone: '136****8192', status: 'converted', demand: '已立项，先做装配车间', budget: '60-80万', next: '已转客户', accountIdx: 0 },
-  { name: '嘉兴申菱环境仓储改造', contact: '周主管', title: '物流部', phone: '135****3072', status: 'new', demand: '成品库经常发错货', budget: '待确认', next: '加微信发资料' }
+  { name: '嘉兴申菱环境仓储改造', contact: '周主管', title: '物流部', phone: '135****3072', status: 'new', demand: '成品库经常发错货', budget: '待确认', next: '加微信发资料', inPool: true }
 ];
 
 async function seedSampleData(orgId, userId, nowStr) {
@@ -101,17 +108,23 @@ async function seedSampleData(orgId, userId, nowStr) {
     accountIds.push(idOf(r));
   }
 
-  // 2. 线索（已转化的那条挂到对应客户上）
+  // 2. 线索：3 条私有 + 2 条入公共池（已转化的那条挂到对应客户上）
+  //    入池只写池轨迹字段，不写 pool_events——这是系统预置，不是「谁领了 / 谁放回」的流转事件。
+  //    claim_at / last_activity_at 保持 NULL，janitor 只扫 owner_id 非空且 claim_at 非空的线索，
+  //    所以示例池线索不会被自动回收，也不会误计首触时钟。
   const leadIds = [];
   for (let i = 0; i < SAMPLE_LEADS.length; i++) {
     const l = SAMPLE_LEADS[i];
+    const inPool = Boolean(l.inPool);
     const r = await run(
       `insert into leads(name,contact_name,contact_title,contact_phone,source,industry,region,demand,budget,
-         next_action,next_date,status,score,owner_id,org_id,account_id,created_at,updated_at)
-       values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         next_action,next_date,status,score,owner_id,org_id,account_id,created_at,updated_at,
+         pool_at,pool_reason,pool_count)
+       values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       l.name, l.contact, l.title, l.phone, '示例', null, null, l.demand, l.budget,
       l.next, date(1 + i), l.status, l.status === 'qualified' ? 80 : l.status === 'contacted' ? 50 : 20,
-      userId, orgId, l.accountIdx != null ? accountIds[l.accountIdx] : null, nowStr, nowStr
+      inPool ? null : userId, orgId, l.accountIdx != null ? accountIds[l.accountIdx] : null, nowStr, nowStr,
+      inPool ? nowStr : null, inPool ? 'sample' : null, inPool ? 1 : 0
     );
     leadIds.push(idOf(r));
   }

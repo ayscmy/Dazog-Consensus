@@ -276,9 +276,38 @@ async function doClaim(id, ctx) {
 }
 
 /* ---------------- 分配（经理） ---------------- */
+
+/**
+ * 试用组织默认只有注册者一个人。这时候点「分配」不该弹一个只有自己的下拉框，
+ * 而应该告诉他：加个同事，公共池才转得起来——顺便点出社区版 10 人以内免费。
+ * 第 11 人的额度拦截仍在 admin.js 的 showUpgrade()（USER_LIMIT → UPGRADE_URL），
+ * 这里只负责把「分配」这个动作接成通往团队的第一级台阶（docs/20 第 3.8 节）。
+ */
+function showAddTeammateHint() {
+  modal({
+    title: '添加同事一起用',
+    width: 470,
+    body: `<div class="stack">
+      <div class="notice blue">${icon('info', 14)}
+        <div>你的组织里目前只有你一个人。公共池里的线索需要有人领、有人分，加个同事就能跑起来。</div>
+      </div>
+      <div class="muted" style="font-size:12.5px;line-height:1.7">
+        社区版 <b>10 个在职用户以内免费</b>，含企业内部经营使用；超过 10 人再考虑商业授权。
+      </div>
+    </div>`,
+    footer: `<button class="btn" data-c>以后再说</button><button class="btn btn-primary" data-go>去添加同事</button>`,
+    onMount(root, close) {
+      root.querySelector('[data-c]').onclick = close;
+      root.querySelector('[data-go]').onclick = () => { close(); location.hash = '#/admin'; };
+    },
+  });
+}
+
 function openAssign(id, name, ctx) {
   const users = pickUsers();
-  if (!users.length) return toast('没有可分配的在职成员', 'err');
+  // bootstrap 的 users 已按 peopleScope 过滤；除自己外没有可分配成员 = 组织内仅 1 人
+  const others = users.filter((u) => Number(u.value) !== Number(state.user?.id));
+  if (!others.length) return showAddTeammateHint();
   modal({
     title: `分配线索：${name || '#' + id}`,
     width: 440,

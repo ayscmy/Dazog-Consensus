@@ -9,7 +9,10 @@
  *  - db.js 在「模块求值期」就确定数据库引擎，因此三个场景各起一个子进程，
  *    由主入口通过环境变量注入，避免单例串库。
  *  - 场景：sqlite-new（新库 + TC-01~TC-10 + TC-12a~12h 含外部 API 入池）、
- *          sqlite-legacy（模拟老库补列）、pg（TC-11 的 PG 分支）。
+ *          sqlite-legacy（模拟老库补列）、trial-link（二期试用联动 TC-B2-01~13）、
+ *          pg（TC-11 的 PG 分支）。
+ *  - 二期场景要顺带检查官网 D1 邮件时，传 SITE_ROOT=<官网仓库根>；未设置则跳过该两项，
+ *    保证 CRM 仓库单独跑 test:pool 时不依赖官网路径。
  */
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -50,6 +53,7 @@ if (!SCENE) {
   const scenes = [
     ['sqlite-new', { ...base, POOL_CHECK_TMP: tmp, ENV_FILE: join(tmp, 'empty.env'), DB_TYPE: 'sqlite', CRM_DB: join(tmp, 'new.db') }],
     ['sqlite-legacy', { ...base, POOL_CHECK_TMP: tmp, ENV_FILE: join(tmp, 'empty.env'), DB_TYPE: 'sqlite', CRM_DB: join(tmp, 'legacy.db') }],
+    ['trial-link', { ...base, POOL_CHECK_TMP: tmp, ENV_FILE: join(tmp, 'empty.env'), DB_TYPE: 'sqlite', CRM_DB: join(tmp, 'trial.db'), SITE_ROOT: String(process.env.SITE_ROOT || '').trim() }],
     ['pg', { ...base, POOL_CHECK_TMP: tmp }], // 不设 ENV_FILE，让项目 .env 的 PostgreSQL 生效
   ];
 
@@ -69,6 +73,35 @@ if (!SCENE) {
   rmSync(tmp, { recursive: true, force: true });
   console.log(`\n===== 汇总：${scenes.length - badScenes}/${scenes.length} 场景通过，${totalFail} 条用例失败 =====`);
   process.exit(badScenes || totalFail ? 1 : 0);
+}
+
+/* ==================================================================== */
+/* 单场景直跑保护                                                          */
+/*   官方入口是 npm run test:pool：主入口为每个场景注入 ENV_FILE / DB_TYPE  */
+/*   / CRM_DB，全部指向临时库。若有人直接跑                                */
+/*     node scripts/pool-check.mjs --scene=trial-link                      */
+/*   而没带这些变量，db.js 会读项目 .env 连到生产 PostgreSQL，场景里的种子  */
+/*   数据就会写进生产库。双道守卫：先查注入的环境变量（连 db.js 都不加载，  */
+/*   不建生产连接池），变量齐了再以实际 DB_ENGINE 二次确认，不依赖调用方   */
+/*   记得传参。pg 场景刻意放行——它本来就要连生产库做幂等迁移。            */
+/* ==================================================================== */
+if (SCENE && SCENE !== 'pg') {
+  // 第一道：只看主入口注入的环境变量，未注入 SQLite 临时库就直接拒绝，
+  // 连 db.js 都不 import——避免模块求值期按 .env 建起生产 PostgreSQL 连接池。
+  const injected = String(process.env.DB_TYPE || '').toLowerCase() === 'sqlite'
+    && Boolean(process.env.ENV_FILE)
+    && Boolean(process.env.CRM_DB);
+  if (!injected) {
+    console.error(`[拒绝执行] 场景 ${SCENE} 只能跑在 SQLite 临时库上，且必须由主入口注入 ENV_FILE / DB_TYPE / CRM_DB。`);
+    console.error('请用 npm run test:pool 走主入口，或显式设置 ENV_FILE=<空文件> DB_TYPE=sqlite CRM_DB=<临时文件>。');
+    process.exit(2);
+  }
+  // 第二道：环境变量齐了也以实际引擎为准，防 env.js 忽略 DB_TYPE 的极端情况。
+  const probe = await import('../src/db.js');
+  if (probe.DB_ENGINE !== 'sqlite') {
+    console.error(`[拒绝执行] 场景 ${SCENE} 只能用 SQLite 临时库，当前引擎是 ${probe.DB_ENGINE}。`);
+    process.exit(2);
+  }
 }
 
 /* ==================================================================== */
@@ -365,7 +398,87 @@ if (SCENE === 'sqlite-legacy') {
 }
 
 /* ==================================================================== */
-/* 场景三：PostgreSQL（TC-11 的 PG 分支，只做幂等迁移 + 结构检查）          */
+/* 场景三：二期 · 试用联动（TC-B2-01~13）                                  */
+/*   真实调 createTrialAccount() 建一个试用组织，验证 3 私有 + 2 入池、      */
+/*   frozen 拦截、前端分配引导与第 11 人额度链路，以及官网 D1 邮件总数。     */
+/* ==================================================================== */
+if (SCENE === 'trial-link') {
+  const db = await import('../src/db.js');
+  const { run, one, all, nowIso } = db;
+  const T = await import('../src/trial.js');
+  const P = await import('../src/pool.js');
+
+  await db.migrate();
+  // ensureTrialRoot() 要挂在根组织下；临时库先给一条根
+  await run("insert into org_units(id,parent_id,path,name,type,created_at) values(1,null,'/1/','集团','company',?)", nowIso());
+
+  const t = await T.createTrialAccount({ email: 'pool2@example.com', name: '二期验收', company: '二期验收公司' });
+  check('TC-B2-01', Boolean(t.userId && t.orgId && t.sample && t.sample.leads === 5),
+    `开通试用并预置 5 条示例线索（sample=${JSON.stringify(t.sample)}）`);
+
+  const rows = await all("select * from leads where org_id = ? and source = '示例' order by id", t.orgId);
+  check('TC-B2-02', rows.length === 5, `示例线索共 5 条（实际 ${rows.length}）`);
+  const priv = rows.filter((r) => r.owner_id === t.userId);
+  const pooled = rows.filter((r) => r.owner_id === null);
+  check('TC-B2-03', priv.length === 3 && pooled.length === 2,
+    `3 条私有 + 2 条入池（${priv.length}/${pooled.length}）`);
+  check('TC-B2-04', pooled.length === 2 && pooled.every((r) => r.pool_at && r.pool_reason === 'sample'
+      && Number(r.pool_count) === 1 && r.status === 'new' && !r.claim_at && !r.last_activity_at),
+    '入池线索：pool_at / pool_reason=sample / pool_count=1 / status=new / 无 claim_at');
+  check('TC-B2-05', priv.length === 3 && priv.every((r) => !r.pool_at && Number(r.pool_count) === 0),
+    '私有线索不带池轨迹');
+
+  // converted 那条关联了商机与报价，必须保持私有，示例主线不能被破坏
+  const conv = rows.find((r) => r.status === 'converted');
+  check('TC-B2-06', Boolean(conv) && conv.owner_id === t.userId && Boolean(conv.account_id),
+    '已转化示例线索保持私有并关联客户（商机 / 报价主线不变）');
+
+  // 试用成员（scope=org）视角能在公共池看到这 2 条
+  const org = await one('select path from org_units where id = ?', t.orgId);
+  const trialUser = { id: t.userId, role: 'trial', scope: 'org', orgPath: org.path, org_id: t.orgId, modules: ['lead'] };
+  const visible = await P.listPool(trialUser);
+  check('TC-B2-07', visible.length === 2 && pooled.every((r) => visible.some((v) => v.id === r.id)),
+    `试用成员在「公共池」看得到 2 条待领示例线索（实际 ${visible.length}）`);
+
+  // frozen 账号禁止领取（docs/20 第 3.8 节第 4 条）
+  await run("update users set status = 'frozen' where id = ?", t.userId);
+  let frozenCode = '';
+  try { await P.claimLead(trialUser, pooled[0]?.id || 0); }
+  catch (e) { frozenCode = e.detail?.code || e.message; }
+  check('TC-B2-08', frozenCode === 'POOL_FROZEN', `frozen 账号领取被拒（${frozenCode}）`);
+  await run("update users set status = 'active' where id = ?", t.userId);
+
+  /* ---- 前端：分配引导 + 第 11 人额度提示链路（源码静态检查） ---- */
+  const poolSrc = readFileSync(join(ROOT, 'public/js/views/pool.js'), 'utf8');
+  check('TC-B2-09', /showAddTeammateHint/.test(poolSrc) && /others\.length/.test(poolSrc)
+      && /10 个在职用户以内免费/.test(poolSrc) && /#\/admin/.test(poolSrc),
+    '分配引导：组织内仅 1 人时弹「添加同事一起用」并跳用户管理');
+  const adminSrc = readFileSync(join(ROOT, 'public/js/views/admin.js'), 'utf8');
+  const editionSrc = readFileSync(join(ROOT, 'src/edition.js'), 'utf8');
+  check('TC-B2-10', /USER_LIMIT/.test(adminSrc) && /showUpgrade/.test(adminSrc)
+      && /upgradeUrl/.test(adminSrc) && /社区版许可 v2\.0/.test(adminSrc)
+      && !/仅限个人学习与非营利研究/.test(adminSrc),
+    '第 11 人链路：USER_LIMIT → 升级弹窗 → UPGRADE_URL，话术已对齐 v2.0');
+  check('TC-B2-11', /code: 'USER_LIMIT'/.test(editionSrc) && /assertUserSlot/.test(editionSrc)
+      && /UPGRADE_URL/.test(editionSrc),
+    '后端 assertUserSlot 抛 USER_LIMIT 且带 UPGRADE_URL');
+
+  /* ---- 官网 D1 邮件：仍 5 封 + 含公共池一句（跨仓库，需 SITE_ROOT） ---- */
+  const siteRoot = String(process.env.SITE_ROOT || '').trim();
+  if (siteRoot) {
+    const mailSrc = readFileSync(join(siteRoot, 'src/trial-mails.js'), 'utf8');
+    const keys = mailSrc.match(/key: 'd\d+'/g) || [];
+    check('TC-B2-12', keys.length === 5, `官网 MAIL_STEPS 仍为 5 封（实际 ${keys.length}）`);
+    check('TC-B2-13', /2 条线索放在「公共池」/.test(mailSrc),
+      'D1 正文含「公共池里有 2 条待领取的示例线索」对应文案');
+  } else {
+    console.log('[SKIP] 未设置 SITE_ROOT，跳过官网 D1 邮件检查（TC-B2-12/13）');
+  }
+  finish('trial-link');
+}
+
+/* ==================================================================== */
+/* 场景四：PostgreSQL（TC-11 的 PG 分支，只做幂等迁移 + 结构检查）          */
 /* ==================================================================== */
 if (SCENE === 'pg') {
   const db = await import('../src/db.js');
@@ -402,7 +515,7 @@ if (SCENE === 'pg') {
   finish('pg');
 }
 
-if (!['sqlite-new', 'sqlite-legacy', 'pg'].includes(SCENE)) {
+if (!['sqlite-new', 'sqlite-legacy', 'trial-link', 'pg'].includes(SCENE)) {
   console.error(`未知场景：${SCENE}`);
   process.exit(2);
 }

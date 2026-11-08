@@ -3,9 +3,9 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：`主版本.次版本.修订号`。
 数据库结构变更一律通过 `src/db.js` 的 `migrate()` 增量执行，升级前请先备份 `data/crm.db`。
 
-## 未发布（线索公海 · 一期）
+## 未发布（线索公海 · 一期 / 试用联动 · 二期）
 
-**只做了 A · CRM 线索公海；B · 官网真实商业线索池仍按 `docs/20` 第 13 节二~四期待执行。**
+**一期做了 A · CRM 线索公海，二期做了试用联动；B · 官网真实商业线索池仍按 `docs/20` 第 13 节三~四期待执行。**
 
 ### 新增
 
@@ -34,12 +34,26 @@
 - `idx_lead_pool` 从建表 DDL 移到 `ensurePoolIndexes()`（补列之后），修复老库升级报
   `no such column: pool_at`；janitor 扫描条件补 `claim_at IS NOT NULL`，避免历史线索整批误回池
 
+### 二期 · 试用联动（2026-11-08）
+
+- `src/trial.js` 的 `seedSampleData()`：5 条示例线索改为 **3 条私有 + 2 条入公共池**
+  （`owner_id=NULL` / `pool_at=now` / `pool_reason='sample'` / `pool_count=1`），
+  选两条 `new` 且未关联商机的线索；已转化那条仍挂商机与报价
+- 官网 D1 邮件（text / html）各加一句「公共池里有 2 条待领取的示例线索」，
+  `MAIL_STEPS` **仍为 5 封**，未新增邮件、未改发送逻辑
+- 前端「分配」在组织内仅 1 人时改弹「添加同事一起用，社区版 10 人以内免费」并跳用户管理；
+  顺带把 `showUpgrade()` 里仍是 v1.0「禁止商用」的话术校正到社区版许可 v2.0
+- `docs/20` v4 变更记录第 8 条登记执行期口径修正：邮件序列实现在官网仓库，
+  二期主体仍在 CRM，官网仅改 D1 一句；**官网仓库不配 remote、不推 Gitee**
+
 ### 验证
 
-- `npm run test:pool`（`node scripts/pool-check.mjs`）：**3/3 场景、44 条断言 0 失败**
-  （含 PostgreSQL 真实幂等迁移、外部线索 API 入池的端到端 HTTP 验证）
+- `SITE_ROOT=<官网仓库根> npm run test:pool`：**4/4 场景、57 条断言 0 失败**
+  （一期 44 条 + 二期 `TC-B2-01~13` 13 条；含 PostgreSQL 真实幂等迁移、
+  外部线索 API 入池 HTTP 全链路、官网 D1 邮件总数仍 5 封）
+- 不传 `SITE_ROOT` 时跳过官网 D1 两项，CRM 仓库可独立跑 `npm run test:pool`
 - 全量 `node --check`：后端 / 脚本 / 前端 JS 均通过
-- 执行期口径调整（双时钟与保护期冲突、索引时序等 6 条）已逐条登记在
+- 执行期口径调整与补充（双时钟与保护期冲突、索引时序、二期范围修正等 8 条）已逐条登记在
   `docs/20-公共池设计方案.md` 的 v4 变更记录，**未静默改设计**
 
 ## 2.11.0
