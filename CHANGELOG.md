@@ -3,9 +3,9 @@
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：`主版本.次版本.修订号`。
 数据库结构变更一律通过 `src/db.js` 的 `migrate()` 增量执行，升级前请先备份 `data/crm.db`。
 
-## 未发布（线索公海 · 一期 / 试用联动 · 二期 / 官网真实商业线索池 · 三期）
+## 未发布（线索公海 · 一期 / 试用联动 · 二期 / 官网真实商业线索池 · 三期 / 下载版 API · 四期）
 
-**一期做了 A · CRM 线索公海，二期做了试用联动；三期打通 B · 官网真实商业线索池的「通道 1 · 在线试用投递」；四期「下载版 API 拉取 / 推送」仍按 `docs/20` 第 13 节待执行。**
+**一期做了 A · CRM 线索公海，二期做了试用联动；三期打通 B · 官网真实商业线索池的「通道 1 · 在线试用投递」；四期完成「通道 2 拉取 / 通道 3 推送」，按 `docs/20` 第 13 节四期 DoD 达成。四期按用户新增铁律只做本地提交，未推 Gitee / GitHub、未上传线上。**
 
 ### 三期 · 官网真实商业线索池（CRM 侧）
 
@@ -15,6 +15,15 @@
 - `guard()` 的 401 / 403 补 `INTERNAL_KEY_INVALID`，新增 `TRIAL_NOT_FOUND` / `TRIAL_FROZEN` 业务码；`frozen` / `revoked` 试用账号拒绝投递
 - 回归：`npm run test:pool` 4/4 场景通过、0 条用例失败；官网 `scripts/pool-check.mjs` 87/87、`scripts/seo-check.mjs` 68/68
 - 设计口径：CRM `docs/20` v4 变更记录第 13~15 条
+
+### 四期 · 下载版 API（CRM 侧）
+
+- **CRM 侧不改代码**：通道 3 直接复用现有 `POST /api/v1/leads`（`src/routes/leads-api.js` 的 `WRITE_FIELDS`、`external_id` 幂等、`X-Api-Key` 无关的 `Authorization: Bearer` 鉴权），通道 2 由本地 CRM 主动调官网拉取接口
+- `docs/15-线索API接口(v1).md` 新增第 10 节「官网商业线索池 · 推送出站」：三条通道区分、请求形态与字段映射、`external_id='pool:<claim_id>'` 幂等重试、白名单配置（含 `X-Pool-Domain` 说明）、TC-22~TC-24 验收
+- `docs/20` 状态改为「一期 + 二期 + 三期 + 四期已实现」，第 12 节补三四期执行结果（官网 `pool-check.mjs` 142/142）、第 13 节四期 DoD 标注已达成、v4 追加第 16（铁律）/ 17（四期细化）/ 18（验收脚本 pg 场景改静态断言）条
+- 回归：`npm run test:pool` 4/4 场景通过、0 条用例失败；官网 `scripts/pool-check.mjs` 142/142、`scripts/seo-check.mjs` 68/68
+- **铁律（用户 2026-11-08 新增）**：默认全部是本地开发环境，未明确「上线」不推 Gitee / GitHub、不上传线上系统；本轮**仅本地提交**（一~三期已推送不追溯、不回滚）
+- **落实铁律 · 验收脚本脱敏**：`scripts/pool-check.mjs` 的 `pg` 场景原会连项目 `.env` 的生产 PostgreSQL 跑 `migrate()`，改为纯 DDL 静态断言（不 `import db.js`、不连库），主入口同时给它注入隔离 SQLite 变量作纵深防御；真实 PG 幂等迁移改属显式「上线 / 运维窗口」操作。回归仍 `4/4 场景通过、0 条用例失败`（v4 第 18 条）
 
 ### 新增
 
@@ -32,7 +41,8 @@
 - 9 项 `pool.*` 规则纳入设置中心（系统设置 → 公共池规则），改完即时生效，不重启；
   启动横幅打印当前生效的规则摘要
 - 验收脚本 `scripts/pool-check.mjs`：TC-01~TC-10、TC-11a~11r、TC-12a~12h，覆盖
-  SQLite 新库、SQLite 老库补列、PostgreSQL 幂等迁移、真实 HTTP 冒烟（含外部 API 入池全链路）
+  SQLite 新库、SQLite 老库补列、PostgreSQL DDL 静态断言、真实 HTTP 冒烟（含外部 API 入池全链路）；
+  四个场景全部跑临时隔离环境，绝不连生产 PostgreSQL（v4 第 18 条）
 
 ### 变更
 

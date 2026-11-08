@@ -255,3 +255,76 @@ curl 'https://你的域名/api/v1/leads?status=new&since=2026-10-30T00:00:00Z&li
 | `src/http.js` | 对外接口路由分支（`auth: 'api'`）、CORS、调用日志落库 |
 | `src/db.js` | `api_clients`、`api_logs` 表结构 |
 | `public/js/views/admin.js` | 「API 接入」页：列表、开通表单、密钥弹窗、自检、调试台、日志 |
+
+---
+
+## 10. 官网商业线索池 · 推送出站（四期）
+
+> 来源：官网仓库 `docs/11-公共池与转化承接.md` 第 7 节「通道 3」，CRM 侧总设计见 `docs/20-公共池设计方案.md` 第 4.5 节。
+> **本节只描述出站方怎么调本接口，CRM 侧不需要改任何代码**：推送复用的就是第 5.2 节的 `POST /api/v1/leads`。
+
+### 10.1 三条承接通道里，哪条会打到这里
+
+| 通道 | 方向 | 是否调用本接口 |
+| --- | --- | --- |
+| 1 · 在线试用 | 官网 → CRM 内部接口 `/api/internal/trial/:id/pool-lead` | 否，走 `X-Internal-Key` |
+| 2 · 下载版 API 拉取（默认） | 本地 CRM 主动调官网 `GET /api/v1/pool/claims` | 否，官网返回数据，本地 CRM 自己写库 |
+| 3 · 下载版 API 推送（可选） | **官网 → 本地 CRM `POST /api/v1/leads`** | **是，本节** |
+
+本地部署多在**内网**、没有公网入站，因此默认推荐通道 2；只有会员登记了自己 CRM 的公网 `base_url` 并配置好白名单，才启用通道 3。
+
+### 10.2 请求形态
+
+官网在会员领取线索成功时同步出站一次：
+
+```bash
+curl -X POST 'https://会员CRM域名/api/v1/leads' \
+  -H 'Authorization: Bearer crm_xxxxxxxxxxxxxxxxxxxxxxxx' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "集团 CRM 选型 · 华辰智造科技有限公司",
+    "external_id": "pool:123",
+    "contact_name": "张三",
+    "contact_phone": "13800000000",
+    "source": "官网公共池",
+    "industry": "制造业",
+    "region": "华东",
+    "demand": "需要一套集团级 CRM 管理 60 人销售团队",
+    "budget": "20-30 万"
+  }'
+```
+
+字段映射（官网 `pool_items` → 本接口 `WRITE_FIELDS`）：
+
+| 官网字段 | 本接口字段 | 说明 |
+| --- | --- | --- |
+| `title` + `company` | `name` | 用 ` · ` 拼接；CRM `leads` 无 `company` 列，不丢信息 |
+| `pool:<claim_id>` | `external_id` | **幂等键，服务端拼装，不信任官网传值** |
+| `contact` | `contact_name` | |
+| `contact_phone` | `contact_phone` | |
+| 固定值 | `source` | `官网公共池` |
+| `industry` / `region` / `demand` / `budget` | 同名 | |
+
+### 10.3 幂等与重试（TC-23）
+
+`external_id` 命中 `leads.uq_lead_external` 唯一索引：
+
+- 首次推送 → `201`，`duplicated: false`，新建一条线索；
+- 同一 `claim_id` 重放 → `200`，`duplicated: true`，返回原记录，**不新建**；
+- 官网侧把 `duplicated` 记进 `delivery`，并写 `pool_api_sync` 审计流水。
+
+官网交付失败（CRM 不可达 / 返回非 2xx）时回滚 `claim_count` 与当日额度，`pool_claims.status='failed'` 保留供重试，重试复用同一个 `claim_id`——因此重试天然安全，不会建重。
+
+### 10.4 白名单配置（部署方必做）
+
+1. 在 CRM 后台「API 接入」生成密钥，把**官网服务器出口 IP**填入该接入方的授权 IP 白名单（第 8 节：空名单 = 全部拒绝）。
+2. 域名白名单按需启用：纯服务端出站通常不带 `Origin`，官网会补 `X-Pool-Domain`；若 CRM 侧配了域名规则，请确认规则与之一致，否则按第 8 节会 403。
+3. 密钥在官网侧用 AES-256-GCM 加密存 `pool_api_clients.push_secret_enc`，不落明文；CRM 侧看到的仍是一次性显示的那个 Bearer Key。
+
+### 10.5 相关验收
+
+- `TC-22`：官网拉接口只返回该会员自己领过的线索，白名单外 IP 返回 `POOL_API_IP_DENIED`。
+- `TC-23`：同一 `claim_id` 重放两次，CRM 只多 1 条，第二次 `duplicated=true`。
+- `TC-24`：`since` 增量拉两次，第二次不重复返回。
+
+以上用例在官网仓库 `scripts/pool-check.mjs` 用临时 SQLite + mock 出站跑，不连生产库、不触达真实 CRM。

@@ -1,16 +1,19 @@
 /**
- * 一期「线索公海」验收脚本（docs/20 第 12 节 TC-01~TC-12）
+ * 一 / 二 / 三期公共池验收脚本（docs/20 第 12 节 TC-01~TC-12、TC-B2-01~13）
  *
- *   node scripts/pool-check.mjs
+ *   node scripts/pool-check.mjs      （等价于 npm run test:pool）
  *
- * 设计约束：
- *  - 全程用临时库，绝不碰 data/crm.db 或生产 PostgreSQL 的业务数据；
- *    PG 场景只跑幂等 migrate() 与结构检查，不写业务行。
- *  - db.js 在「模块求值期」就确定数据库引擎，因此三个场景各起一个子进程，
+ * 安全边界（硬约束 · 铁律「默认全部是本地开发环境」）：
+ *  - 四个场景全部跑在临时隔离环境：sqlite-new / sqlite-legacy / trial-link 用临时
+ *    SQLite 库，pg 只做 DDL 静态断言；绝不读生产 DATABASE_URL / 绝不连生产 PostgreSQL，
+ *    绝不碰 data/crm.db 的业务数据。
+ *  - 真实 PostgreSQL 幂等迁移验收会改动生产库结构，已从默认验收脚本移除；如确需执行，
+ *    属于显式「上线 / 运维窗口」操作，须由运维在部署窗口单独处理。
+ *  - db.js 在「模块求值期」就确定数据库引擎，因此四个场景各起一个子进程，
  *    由主入口通过环境变量注入，避免单例串库。
  *  - 场景：sqlite-new（新库 + TC-01~TC-10 + TC-12a~12h 含外部 API 入池）、
  *          sqlite-legacy（模拟老库补列）、trial-link（二期试用联动 TC-B2-01~13）、
- *          pg（TC-11 的 PG 分支）。
+ *          pg（TC-11 的 PG 分支，改为静态断言，不连库）。
  *  - 二期场景要顺带检查官网 D1 邮件时，传 SITE_ROOT=<官网仓库根>；未设置则跳过该两项，
  *    保证 CRM 仓库单独跑 test:pool 时不依赖官网路径。
  */
@@ -42,7 +45,7 @@ const D = 86400000;
 const NOW = Date.now();
 
 /* ==================================================================== */
-/* 主入口：依次跑三个场景，汇总结果                                        */
+/* 主入口：依次跑四个场景，汇总结果                                        */
 /* ==================================================================== */
 if (!SCENE) {
   const tmp = mkdtempSync(join(tmpdir(), 'crm-pool-check-'));
@@ -54,7 +57,9 @@ if (!SCENE) {
     ['sqlite-new', { ...base, POOL_CHECK_TMP: tmp, ENV_FILE: join(tmp, 'empty.env'), DB_TYPE: 'sqlite', CRM_DB: join(tmp, 'new.db') }],
     ['sqlite-legacy', { ...base, POOL_CHECK_TMP: tmp, ENV_FILE: join(tmp, 'empty.env'), DB_TYPE: 'sqlite', CRM_DB: join(tmp, 'legacy.db') }],
     ['trial-link', { ...base, POOL_CHECK_TMP: tmp, ENV_FILE: join(tmp, 'empty.env'), DB_TYPE: 'sqlite', CRM_DB: join(tmp, 'trial.db'), SITE_ROOT: String(process.env.SITE_ROOT || '').trim() }],
-    ['pg', { ...base, POOL_CHECK_TMP: tmp }], // 不设 ENV_FILE，让项目 .env 的 PostgreSQL 生效
+    // pg 场景只做 DDL 静态断言、不 import db.js / 不连任何库；仍注入同一套隔离 SQLite
+    // 变量作为纵深防御，彻底屏蔽项目 .env，绝不连生产 PostgreSQL。
+    ['pg', { ...base, POOL_CHECK_TMP: tmp, ENV_FILE: join(tmp, 'empty.env'), DB_TYPE: 'sqlite', CRM_DB: join(tmp, 'pg-static.db') }],
   ];
 
   let badScenes = 0;
@@ -83,7 +88,7 @@ if (!SCENE) {
 /*   而没带这些变量，db.js 会读项目 .env 连到生产 PostgreSQL，场景里的种子  */
 /*   数据就会写进生产库。双道守卫：先查注入的环境变量（连 db.js 都不加载，  */
 /*   不建生产连接池），变量齐了再以实际 DB_ENGINE 二次确认，不依赖调用方   */
-/*   记得传参。pg 场景刻意放行——它本来就要连生产库做幂等迁移。            */
+/*   记得传参。pg 场景现为纯静态断言、不加载 db.js，无需守卫；主入口仍注入同一套隔离变量作为纵深防御，绝不连生产 PostgreSQL。            */
 /* ==================================================================== */
 if (SCENE && SCENE !== 'pg') {
   // 第一道：只看主入口注入的环境变量，未注入 SQLite 临时库就直接拒绝，
@@ -478,40 +483,24 @@ if (SCENE === 'trial-link') {
 }
 
 /* ==================================================================== */
-/* 场景四：PostgreSQL（TC-11 的 PG 分支，只做幂等迁移 + 结构检查）          */
+/* 场景四：PostgreSQL DDL 静态断言（TC-11 的 PG 分支，绝不连生产库）          */
 /* ==================================================================== */
 if (SCENE === 'pg') {
-  const db = await import('../src/db.js');
-  try {
-    await db.migrate();
-    const cols = await db.all(
-      'select column_name from information_schema.columns where table_schema = ? and table_name = ?',
-      db.SCHEMA, 'leads'
-    );
-    const names = cols.map((r) => r.column_name);
-    check('TC-11m', db.DB_ENGINE === 'postgres', `当前引擎为 PostgreSQL（schema ${db.SCHEMA}）`);
-    check('TC-11n', ['pool_at', 'pool_reason', 'pool_count'].every((c) => names.includes(c)),
-      'PG leads 含 3 个池字段（老库由 ensureColumns 补出）');
-    const apiCols = await db.all(
-      'select column_name from information_schema.columns where table_schema = ? and table_name = ?',
-      db.SCHEMA, 'api_clients'
-    );
-    check('TC-11o', apiCols.map((r) => r.column_name).includes('pool_on_missing'), 'PG api_clients 含 pool_on_missing');
-    const evt = await db.one(
-      "select to_regclass(?) is not null as ok", `${db.SCHEMA}.pool_events`
-    );
-    check('TC-11p', Boolean(evt?.ok), 'PG 含 pool_events 表');
-    const idx = await db.one('select 1 as ok from pg_indexes where schemaname = ? and indexname = ?', db.SCHEMA, 'idx_lead_pool');
-    check('TC-11q', Boolean(idx), 'PG 含 idx_lead_pool 索引');
-    // 再跑一次，验证幂等
-    let twiceOk = true;
-    try { await db.migrate(); } catch (e) { twiceOk = false; console.log('  migrate 二次执行异常：' + e.message); }
-    check('TC-11r', twiceOk, 'PG 重复 migrate 幂等');
-    await db.pool.end();
-  } catch (e) {
-    check('TC-11m', false, `PostgreSQL 不可用：${String(e.message).slice(0, 180)}`);
-    try { await db.pool?.end(); } catch { /* 忽略 */ }
-  }
+  // 铁律「默认全部是本地开发环境」：绝不连生产 PostgreSQL。真实 PG 幂等迁移会改动
+  // 生产库结构，已从默认验收移除，改对 src/db.js 源码做静态断言（与官网
+  // scripts/pool-check.mjs 的 PG 半边做法一致，见 docs/20 v4 第 18 条）。
+  // 本分支不 import db.js、不调用 migrate()、不建立任何数据库连接。
+  const ddl = readFileSync(join(ROOT, 'src/db.js'), 'utf8');
+  check('TC-11m', /DB_ENGINE/.test(ddl) && /'postgres'/.test(ddl) && /migratePg/.test(ddl),
+    'db.js 含 PostgreSQL 引擎分支（静态断言，不连库）');
+  check('TC-11n', ['pool_at', 'pool_reason', 'pool_count'].every((c) => ddl.includes(c)),
+    'PG DDL / COLUMN_PATCHES 含 leads 3 个池字段');
+  check('TC-11o', ddl.includes('pool_on_missing'), 'PG DDL 含 api_clients.pool_on_missing');
+  check('TC-11p', ddl.includes('CREATE TABLE IF NOT EXISTS pool_events'), 'PG DDL 含 pool_events 表');
+  check('TC-11q', /CREATE INDEX IF NOT EXISTS idx_lead_pool/.test(ddl), 'PG DDL 含 idx_lead_pool 索引');
+  check('TC-11r', /ensureColumns/.test(ddl) && /COLUMN_PATCHES/.test(ddl)
+    && /ensurePoolIndexes/.test(ddl) && /migratePg/.test(ddl),
+    'PG 老库补列 / 补索引走幂等迁移（ensureColumns + ensurePoolIndexes + migratePg）');
   finish('pg');
 }
 
