@@ -54,6 +54,25 @@ export async function render(el) {
       </div>
     </div>` : ''}
 
+    ${d.onboarding && d.onboarding.enabled ? `<div class="panel" style="margin-bottom:12px">
+      <div class="panel-head">
+        <h3>新手引导</h3>
+        ${d.onboarding.doneCount >= d.onboarding.total
+          ? `<span style="font-size:12px;color:#2bb673;font-weight:600">全部完成 🎉</span>`
+          : `<span class="badge badge-amber">${d.onboarding.doneCount}/${d.onboarding.total} 已完成</span>`}
+      </div>
+      <div class="panel-body" style="padding:10px 14px 14px">
+        ${d.onboarding.tasks.map((t) => `<div ${t.done ? '' : `data-go="${t.go}"`} style="display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border:1px solid ${t.done ? '#e3f3e6' : '#eef2f7'};border-radius:10px;margin-bottom:8px;${t.done ? '' : 'cursor:pointer;background:#fafcff'}">
+          <div style="flex:0 0 22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;background:${t.done ? '#2bb673' : '#c9d3e0'}">${t.done ? '✓' : ''}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13.5px;color:${t.done ? '#5b6b7c' : '#1f2d3d'}">${esc(t.title)}</div>
+            ${t.done ? '' : `<div style="font-size:12px;color:#7a8794;margin-top:2px">${esc(t.hint)}</div>`}
+          </div>
+          ${t.done ? '' : `<div style="flex:0 0 auto;align-self:center;font-size:12px;color:#2f6fed;font-weight:600">去完成 →</div>`}
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+
     ${d.receivable ? `<div class="panel" style="margin-bottom:12px">
       <div class="panel-head">
         <h3>财务概览</h3>

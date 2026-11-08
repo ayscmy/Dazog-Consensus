@@ -5,6 +5,58 @@ import { pendingFor } from '../approval.js';
 import { OPP_STAGES, LEAD_STATUS } from '../dict.js';
 import { poolWhere } from '../pool.js';
 const monthKey = (d = new Date()) => d.toISOString().slice(0, 7);
+
+/**
+ * 新手引导（仅试用账号）：数据驱动，零新增表/字段。
+ * 5 项任务全部基于现有表、在试用组织范围内判定，不碰公共池逻辑、不碰正式用户。
+ * 完成判定：
+ *  - view_sample：组织内有 source='示例' 的客户（seed 必预置 → 新开通即自动完成）
+ *  - edit_lead：有 source='示例' 且 updated_at > created_at 的线索（被改过 = 推进过）
+ *  - claim_pool：pool_events 有 action='claim' 且属本组织（从公共池领过）
+ *  - send_quote：报价单状态进入 sent/accepted/won，或已生成发送记录
+ *  - add_real：自己名下有 source 非'示例'的线索（录入了真实客户）
+ */
+async function buildOnboarding(u) {
+  if (u.role !== 'trial') return null;
+  const orgId = u.orgId;
+  const userId = u.id;
+  const has = async (sql, ...params) => !!(await one(sql, ...params));
+  const viewSample = await has(
+    "select 1 from accounts where org_id = ? and source = '示例' limit 1",
+    orgId
+  );
+  const editLead = await has(
+    "select 1 from leads where org_id = ? and source = '示例' and updated_at > created_at limit 1",
+    orgId
+  );
+  const claimPool = await has(
+    "select 1 from pool_events where org_id = ? and action = 'claim' limit 1",
+    orgId
+  );
+  const sendQuote =
+    (await has(
+      "select 1 from quotations where org_id = ? and status in ('sent','accepted','won') limit 1",
+      orgId
+    )) ||
+    (await has(
+      'select 1 from quote_sends qs join quotations q on q.id = qs.quotation_id where q.org_id = ? limit 1',
+      orgId
+    ));
+  const addReal = await has(
+    "select 1 from leads where org_id = ? and owner_id = ? and (source is null or source <> '示例') limit 1",
+    orgId,
+    userId
+  );
+  const tasks = [
+    { key: 'view_sample', title: '浏览示例数据', hint: '左侧「客户」已预置 3 家示例客户，先看看这个系统长什么样', go: '#/accounts', done: viewSample },
+    { key: 'edit_lead', title: '推进一条线索', hint: '在「线索」里把一条示例线索状态改为「已联系」或「已确认」', go: '#/leads', done: editLead },
+    { key: 'claim_pool', title: '从公共池认领一条线索', hint: '进入「公共池」，领取一条待跟进线索——迈出"加个同事一起用"的第一步', go: '#/pool', done: claimPool },
+    { key: 'send_quote', title: '发出第一份报价', hint: '打开示例商机，生成并发送一份报价单', go: '#/quotations', done: sendQuote },
+    { key: 'add_real', title: '录入一条真实线索', hint: '在「线索」点「新建」，录入你自己的客户', go: '#/leads?new=1', done: addReal }
+  ];
+  const doneCount = tasks.filter((t) => t.done).length;
+  return { enabled: true, doneCount, total: tasks.length, tasks };
+}
 GET('/api/dashboard', async ctx => {
   const u = ctx.user;
   const period = monthKey();
@@ -149,6 +201,7 @@ GET('/api/dashboard', async ctx => {
      where (ac.target_type='opportunity' and ac.target_id in (select id from opportunities op where ${oppScope.sql}))
         or (ac.target_type='lead' and ac.target_id in (select id from leads l where ${leadScope.sql}))
      order by ac.created_at desc limit 12`, ...oppScope.params, ...leadScope.params);
+  const onboarding = await buildOnboarding(u);
   return {
     user: u,
     period,
@@ -159,6 +212,7 @@ GET('/api/dashboard', async ctx => {
     approvals,
     leads: leadRows.slice(0, 8),
     poolTotal,
+    onboarding,
     leadOverview: {
       total: leadStats.total || 0,
       fresh: leadStats.fresh || 0,
