@@ -6,7 +6,7 @@ import { canModule, canEditRecord } from './auth.js';
 /**
  * 线索公海核心模块（一期，docs/20 第 3 节 / 第 10.1 节）
  *
- * 三条铁律：
+ * 三条原则：
  *   1. 池 = leads.owner_id IS NULL，不建 pool 主表；池状态与业务状态正交。
  *   2. 领取 / 分配 / 回收一律用「条件更新 + 受影响行数」判并发，先查后写不算数。
  *   3. 所有流转写 pool_events 留痕；无效 / 已转化线索永不回池。

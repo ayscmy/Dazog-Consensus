@@ -216,7 +216,7 @@ POST('/api/contracts/:id/submit', async ctx => {
     paymentTerms: Number(c.payment_terms),
     nonStandard: !!ctx.body?.non_standard
   });
-  const resolved = applyAssignees(resolveChain(chain, c.org_id), ctx.body?.assignees);
+  const resolved = applyAssignees(await resolveChain(chain, c.org_id), ctx.body?.assignees);
   if (resolved.missing.length) {
     throw bad(`审批链缺少审批人：${resolved.missing.map(m => m.label).join('、')}。请先在「系统设置 → 用户与角色」里给该角色指定在职负责人，或在提交时手动选择`, resolved.missing.map(m => `${m.label}：本组织链上没有在职的该角色`));
   }

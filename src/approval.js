@@ -128,10 +128,12 @@ export async function approverCandidates(orgId, role) {
  * 把「角色链」解析成「具体到人」的步骤。
  * missing 里是找不到审批人的节点——提交前必须补齐，否则单据会卡在半空。
  */
-export function resolveChain(chain, orgId) {
+export async function resolveChain(chain, orgId) {
   const steps = [];
   const missing = [];
-  chain.forEach(async (c, i) => {
+  // 必须逐个 await：forEach(async ...) 不会等待回调，函数返回时 steps 仍是空数组，
+  // 审批链会被静默丢弃（历史上 leads-api.js 已就同一问题改用 for...of）。
+  for (const [i, c] of chain.entries()) {
     const candidates = await approverCandidates(orgId, c.role);
     const first = candidates[0] || null;
     if (!first) missing.push({
@@ -148,7 +150,7 @@ export function resolveChain(chain, orgId) {
       approver_org: first ? first.org_name : null,
       candidates
     });
-  });
+  }
   return {
     steps,
     missing
@@ -181,8 +183,8 @@ export function applyAssignees(resolved, assignees) {
 }
 
 /** 把解析结果落成 approval_steps 行（不再静默跳过：缺人由上层拦截） */
-export function buildSteps(chain, orgId) {
-  return resolveChain(chain, orgId).steps.map(s => ({
+export async function buildSteps(chain, orgId) {
+  return (await resolveChain(chain, orgId)).steps.map(s => ({
     seq: s.seq,
     role: s.role,
     label: s.label,
@@ -212,7 +214,7 @@ export async function createApproval({
     decision: s.approver_id ? 'pending' : 'skipped',
     comment: s.approver_id ? s.comment || null : '未找到对应审批人，自动跳过',
     decided_at: s.approver_id ? null : nowIso()
-  })) : buildSteps(chain, orgId);
+  })) : await buildSteps(chain, orgId);
   const firstPending = rows.find(s => s.decision === 'pending');
   const approvalId = await tx(async () => {
     const r = await run(`insert into approvals(type,target_type,target_id,title,summary,amount,status,current_step,total_steps,applicant_id,org_id,created_at)
@@ -303,10 +305,10 @@ export async function createPaymentPlans(contract) {
   if (exists) return;
   const base = new Date(contract.sign_date || Date.now());
   const amounts = contract.amount > 500000 ? [0.4, 0.4, 0.2] : contract.amount > 200000 ? [0.5, 0.5] : [1];
-  amounts.forEach(async (ratio, i) => {
+  for (const [i, ratio] of amounts.entries()) {
     const due = new Date(base.getTime() + (i + 1) * contract.payment_terms * 86400000 / amounts.length);
     await run('insert into payment_plans(contract_id,seq,due_date,amount,ratio,status) values(?,?,?,?,?,?)', contract.id, i + 1, due.toISOString().slice(0, 10), Math.round(contract.amount * ratio), ratio, 'pending');
-  });
+  }
 }
 
 /* ---------------- 待办查询 ---------------- */

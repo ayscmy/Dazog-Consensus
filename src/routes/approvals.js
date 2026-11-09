@@ -30,7 +30,7 @@ GET('/api/approvals/preview', async ctx => {
       };
     }
     const chain = await chainForDiscount(q.discount_rate, op.org_id);
-    const resolved = resolveChain(chain, op.org_id);
+    const resolved = await resolveChain(chain, op.org_id);
     return {
       type,
       id,
@@ -50,7 +50,7 @@ GET('/api/approvals/preview', async ctx => {
     paymentTerms: Number(c.payment_terms),
     nonStandard: ctx.query.non_standard === '1'
   });
-  const resolved = resolveChain(chain, c.org_id);
+  const resolved = await resolveChain(chain, c.org_id);
   return {
     type,
     id,

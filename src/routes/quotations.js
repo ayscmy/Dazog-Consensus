@@ -41,11 +41,13 @@ async function itemsOf(quotationId, user) {
  * - 有 product_id 的，标准价与成本一律以产品库为准（不信任前端传值）
  * - 无 product_id 的视为例外项，需要系统开关放行
  */
-function normalizeItems(rawItems, user) {
+async function normalizeItems(rawItems, user) {
   if (!Array.isArray(rawItems) || !rawItems.length) return null;
   const out = [];
   let customCount = 0;
-  rawItems.forEach(async (raw, i) => {
+  // 必须逐个 await：forEach(async ...) 不等待回调，汇总时 out 还是空数组，
+  // 会导致「报价总额必须大于 0」误报（与 approval.js / leads-api.js 同一反模式）。
+  for (const [i, raw] of rawItems.entries()) {
     const rowNo = i + 1;
     const qty = Number(raw.qty ?? 1);
     if (!(qty > 0)) throw bad(`第 ${rowNo} 行：数量必须大于 0`);
@@ -89,7 +91,7 @@ function normalizeItems(rawItems, user) {
       cost: Math.round(cost * qty * 100) / 100,
       is_custom: isCustom
     });
-  });
+  }
   const listTotal = out.reduce((s, r) => s + r.list_price * r.qty, 0);
   const total = out.reduce((s, r) => s + r.amount, 0);
   const costTotal = out.reduce((s, r) => s + r.cost, 0);
@@ -105,10 +107,10 @@ function normalizeItems(rawItems, user) {
 }
 async function writeItems(quotationId, items) {
   await run('delete from quotation_items where quotation_id = ?', quotationId);
-  items.forEach(async (it, i) => {
+  for (const [i, it] of items.entries()) {
     await run(`insert into quotation_items(quotation_id,seq,product_id,name,spec,unit,qty,list_price,unit_price,amount,cost,is_custom)
        values(?,?,?,?,?,?,?,?,?,?,?,?)`, quotationId, i + 1, it.product_id, it.name, it.spec, it.unit, it.qty, it.list_price, it.unit_price, it.amount, it.cost, it.is_custom);
-  });
+  }
 }
 
 /** 报价单对外 token：客户凭链接直接查看，不需要账号 */
@@ -185,7 +187,7 @@ POST('/api/quotations', async ctx => {
   if (!op) throw bad('请选择商机');
   if (!(await canEditRecord(ctx.user, op))) throw denied('只能为自己负责的商机报价');
   if (['won', 'lost'].includes(op.stage)) throw bad('已结束的商机不能再报价');
-  const normalized = normalizeItems(b.items, ctx.user);
+  const normalized = await normalizeItems(b.items, ctx.user);
   if (!normalized) throw bad('请至少添加一条报价明细（从产品库选择）');
   if (!(normalized.total > 0)) throw bad('报价总额必须大于 0');
   const validDays = (await getSettingNum('quote.valid_days')) || 30;
@@ -214,7 +216,7 @@ PATCH('/api/quotations/:id', async ctx => {
   if (!['draft', 'rejected'].includes(q.status)) throw bad('只有草稿或已驳回的报价可以修改');
   const b = ctx.body || {};
   if (Array.isArray(b.items) && b.items.length) {
-    const normalized = normalizeItems(b.items, ctx.user);
+    const normalized = await normalizeItems(b.items, ctx.user);
     if (!(normalized.total > 0)) throw bad('报价总额必须大于 0');
     await tx(async () => {
       await writeItems(q.id, normalized.items);
@@ -267,7 +269,7 @@ POST('/api/quotations/:id/submit', async ctx => {
   }
   const chain = await chainForDiscount(q.discount_rate, op.org_id);
   const b = ctx.body || {};
-  const resolved = applyAssignees(resolveChain(chain, op.org_id), b.assignees);
+  const resolved = applyAssignees(await resolveChain(chain, op.org_id), b.assignees);
   if (resolved.missing.length) {
     throw bad(`审批链缺少审批人：${resolved.missing.map(m => m.label).join('、')}。请先在「系统设置 → 用户与角色」里给该角色指定在职负责人，或在提交时手动选择`, resolved.missing.map(m => `${m.label}：本组织链上没有在职的该角色`));
   }
