@@ -36,6 +36,14 @@
 - 验收：`scripts/accounts-check.mjs`（新建）本地隔离 SQLite **12/12 通过**（TC-A1 创建+幂等、A2 作用域隔离、A3 增量拉取、A4 dir: 防重复）
 - 设计口径：`docs/21` §9 v2
 
+### 独立部署对接官网客户名录（令牌存储）
+
+- `src/db.js` 的 `api_clients` 表加 `directory_token TEXT` / `directory_tier TEXT` 两列（DDL + `COLUMN_PATCHES` 兜底），供独立部署的 CRM 存储「官网下发的反向拉取令牌 + 会员等级」
+- 反向拉取鉴权在官网侧完成（`resolveByToken` 仅对 pro/enterprise 生效），CRM 侧持令牌调用 `GET /api/v1/directory?token=` 即可
+- 收费标准（SaaS = 独立部署统一规则）见官网侧 `docs/13`
+- 回归：`scripts/accounts-check.mjs` **12/12 仍通过**（加列不影响既有 seed/断言）
+- 设计口径：`docs/21` §9 「独立部署对接令牌」段
+
 ### 新增
 
 - **线索公海**：`leads.owner_id IS NULL` 即在池中，不新增池主表；池状态与业务状态机

@@ -729,7 +729,10 @@ CREATE TABLE IF NOT EXISTS api_clients (
   created_at   TEXT NOT NULL,
   last_used_at TEXT,
   last_ip      TEXT,
-  revoked_at   TEXT
+  revoked_at   TEXT,
+  -- 独立部署对接官网客户名录：官网下发的反向拉取令牌 + 会员等级（pro/enterprise 才具备 api 能力）
+  directory_token TEXT,
+  directory_tier  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_apic_status ON api_clients(status);
 
@@ -811,6 +814,9 @@ const COLUMN_PATCHES = [
   ['api_clients', 'pool_on_missing', 'INTEGER NOT NULL DEFAULT 1'],
   // 客户库双向同步（见 docs/21 第 9 节）：新库已写进 CREATE TABLE，老库在这里补
   ['accounts', 'external_id', 'TEXT'],
+  // 独立部署对接官网客户名录（见 docs/21 第 9 节）：新库已写进 CREATE TABLE，老库在这里补
+  ['api_clients', 'directory_token', 'TEXT'],
+  ['api_clients', 'directory_tier', 'TEXT'],
 ];
 
 async function ensureColumns() {
