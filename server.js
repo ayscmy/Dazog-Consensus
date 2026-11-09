@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { join, normalize, extname } from 'node:path';
 import { createReadStream } from 'node:fs';
-import { migrate, DB_LABEL } from './src/db.js';
+import { migrate, DB_LABEL, DB_ENGINE } from './src/db.js';
 import { setupNeeded } from './src/setup.js';
 import { dispatch, HttpError, parseCookies } from './src/http.js';
 import { getSession, createSession, COOKIE } from './src/auth.js';
@@ -130,6 +130,19 @@ const server = createServer(async (req, res) => {
         'Set-Cookie': `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${4 * 3600}`,
       });
       return res.end();
+    }
+
+    // 健康检查：编排器 / Nginx / 监控用，不鉴权、不碰业务表
+    if (url.pathname === '/healthz') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({
+        ok: true,
+        service: 'mserm-crm',
+        db: DB_ENGINE,
+        uptime: Math.round(process.uptime()),
+        now: new Date().toISOString(),
+      }));
+      return;
     }
 
     if (req.url.startsWith('/api/')) {

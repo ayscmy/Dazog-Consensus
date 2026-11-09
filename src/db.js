@@ -797,6 +797,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   lead_quota     INTEGER NOT NULL DEFAULT 2000,
   api_quota      INTEGER NOT NULL DEFAULT 0,
   order_no       TEXT,
+  admin_password TEXT,
   created_at     TEXT NOT NULL,
   updated_at     TEXT NOT NULL
 );
@@ -841,6 +842,8 @@ const COLUMN_PATCHES = [
   ['leads', 'pool_reason', 'TEXT'],
   ['leads', 'pool_count', 'INTEGER NOT NULL DEFAULT 0'],
   ['api_clients', 'pool_on_missing', 'INTEGER NOT NULL DEFAULT 1'],
+  // 独立实例的初始管理员密码（AES 加密），编排器重试时可还原
+  ['tenants', 'admin_password', 'TEXT'],
   // 客户库双向同步（见 docs/21 第 9 节）：新库已写进 CREATE TABLE，老库在这里补
   ['accounts', 'external_id', 'TEXT'],
   // 独立部署对接官网客户名录（见 docs/21 第 9 节）：新库已写进 CREATE TABLE，老库在这里补
