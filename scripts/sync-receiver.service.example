@@ -1,0 +1,19 @@
+[Unit]
+Description=Gitee -> GitHub sync receiver (mserm-crm)
+After=network.target
+
+[Service]
+Type=simple
+# 用镜像克隆的仓库目录；令牌内嵌在远程 URL 中（见 docs/22）
+WorkingDirectory=/srv/mserm-crm-mirror
+ExecStart=/usr/bin/env GITEE_SECRET=__REPLACE_WITH_WEBHOOK_SECRET__ \
+  PORT=8080 REPO_DIR=/srv/mserm-crm-mirror GITHUB_REMOTE=github \
+  /usr/bin/node /srv/mserm-crm-mirror/scripts/sync-receiver.mjs
+Restart=on-failure
+RestartSec=5
+# 可选：仅当配置了 GitHub 自动建仓时才需要下两行
+# Environment=GITHUB_TOKEN=__REPLACE_WITH_GITHUB_TOKEN__
+# Environment=GITHUB_OWNER=__REPLACE_WITH_GITHUB_OWNER__
+
+[Install]
+WantedBy=multi-user.target
