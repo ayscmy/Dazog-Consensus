@@ -775,6 +775,35 @@ CREATE TABLE IF NOT EXISTS trial_accounts (
 );
 CREATE INDEX IF NOT EXISTS idx_trial_status ON trial_accounts(status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_trial_email ON trial_accounts(email);
+
+-- 正式租户台账（付费后由官网内部接口开通）
+-- 试用期：共享实例里的试用组织；付费后：这里记录租户，instance_state 待编排器拉起独立实例
+CREATE TABLE IF NOT EXISTS tenants (
+  id             SERIAL PRIMARY KEY,
+  code           TEXT NOT NULL UNIQUE,
+  name           TEXT NOT NULL,
+  plan           TEXT NOT NULL DEFAULT 'starter',
+  status         TEXT NOT NULL DEFAULT 'active',
+  owner_email    TEXT NOT NULL,
+  org_id         INTEGER,
+  user_id        INTEGER,
+  trial_id       INTEGER,
+  subdomain      TEXT,
+  port           INTEGER,
+  data_dir       TEXT,
+  instance_state TEXT NOT NULL DEFAULT 'pending',
+  expires_at     TEXT,
+  seats          INTEGER NOT NULL DEFAULT 10,
+  lead_quota     INTEGER NOT NULL DEFAULT 2000,
+  api_quota      INTEGER NOT NULL DEFAULT 0,
+  order_no       TEXT,
+  created_at     TEXT NOT NULL,
+  updated_at     TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_code ON tenants(code);
+CREATE INDEX IF NOT EXISTS idx_tenant_email ON tenants(owner_email);
+CREATE INDEX IF NOT EXISTS idx_tenant_status ON tenants(status, expires_at);
+CREATE INDEX IF NOT EXISTS idx_tenant_order ON tenants(order_no);
 `;
 
 // SQLite 建表 DDL：列定义与 PG 完全一致，仅主键自增写法不同

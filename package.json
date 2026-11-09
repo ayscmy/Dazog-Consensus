@@ -25,6 +25,7 @@
     "backup": "node --no-warnings src/backup.js",
     "test:pool": "node --no-warnings scripts/pool-check.mjs",
     "test:core": "node --no-warnings scripts/core-check.mjs",
+    "test:tenant": "node --no-warnings scripts/tenant-check.mjs",
     "sync:receiver": "node --no-warnings scripts/sync-receiver.mjs",
     "test:sync": "node --no-warnings scripts/sync-receiver.test.mjs"
   },

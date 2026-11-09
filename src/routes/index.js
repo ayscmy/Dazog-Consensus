@@ -22,5 +22,7 @@ import './accounts-api.js';
 import './api-admin.js';
 // 官网开通/回收试用账号的内部接口
 import './trial-api.js';
+// 官网 → CRM：正式租户开通 / 续费 / 停用 / 用量
+import './tenant-api.js';
 // 商业授权的查看与激活（仅系统管理员）
 import './license.js';
