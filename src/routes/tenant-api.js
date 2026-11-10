@@ -79,6 +79,9 @@ function viewOf(t) {
     leadQuota: t.lead_quota,
     apiQuota: t.api_quota,
     orderNo: t.order_no,
+    // P1-B：试用组织数据迁往独立实例的结果（编排器回写），官网/运维可查
+    migrationState: t.migration_state || 'pending',
+    migrationNote: t.migration_note || null,
     createdAt: t.created_at,
   };
 }

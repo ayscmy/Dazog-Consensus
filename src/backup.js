@@ -20,7 +20,7 @@ const TABLES = [
   'payments', 'payment_allocations', 'approvals', 'approval_steps', 'targets', 'products',
   'quotation_items', 'attachments', 'settings', 'audit_logs', 'handovers',
   'contract_templates', 'quote_sends', 'api_clients', 'api_logs',
-  'trial_accounts'
+  'trial_accounts', 'tenants'
 ];
 
 /** 读取库中实际存在的业务表（排除 SQLite 内部表 / PostgreSQL 系统表）。 */

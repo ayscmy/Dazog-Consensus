@@ -798,6 +798,9 @@ CREATE TABLE IF NOT EXISTS tenants (
   api_quota      INTEGER NOT NULL DEFAULT 0,
   order_no       TEXT,
   admin_password TEXT,
+  -- P1-B：试用组织数据迁往独立实例的结果，由编排器回写，供官网/运维查询
+  migration_state TEXT NOT NULL DEFAULT 'pending',
+  migration_note  TEXT,
   created_at     TEXT NOT NULL,
   updated_at     TEXT NOT NULL
 );
@@ -849,6 +852,9 @@ const COLUMN_PATCHES = [
   // 独立部署对接官网客户名录（见 docs/21 第 9 节）：新库已写进 CREATE TABLE，老库在这里补
   ['api_clients', 'directory_token', 'TEXT'],
   ['api_clients', 'directory_tier', 'TEXT'],
+  // P1-B：组织数据迁移状态（pending/running/done/skipped/failed）与备注（老库补列）
+  ['tenants', 'migration_state', "TEXT NOT NULL DEFAULT 'pending'"],
+  ['tenants', 'migration_note', 'TEXT'],
 ];
 
 async function ensureColumns() {
