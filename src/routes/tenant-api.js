@@ -197,6 +197,54 @@ POST('/api/internal/tenant/suspend', async (ctx) => {
   return { ok: true, tenant: viewOf(await one('select * from tenants where id = ?', t.id)) };
 }, { auth: false });
 
+/**
+ * 订阅状态同步（官网 → CRM，P1-A）
+ * 官网 saas_subscriptions 是状态权威；这里只把结论映射到 tenants.status。
+ *   active/expiring → active   grace → grace（只读）   frozen/expired/cancelled → suspended
+ * 幂等：状态与到期日都没变时返回 unchanged，不重复写库。
+ */
+const SUB_STATUS_MAP = {
+  active: 'active',
+  expiring: 'active',
+  grace: 'grace',
+  frozen: 'suspended',
+  expired: 'suspended',
+  cancelled: 'suspended',
+};
+
+POST('/api/internal/tenant/sync-status', async (ctx) => {
+  guard(ctx);
+  const b = ctx.body || {};
+  const status = String(b.status || '');
+  if (!(status in SUB_STATUS_MAP)) throw bad(`不支持的订阅状态：${status || '(空)'}`);
+  const t = b.code
+    ? await one('select * from tenants where code = ?', String(b.code))
+    : b.email
+      ? await one('select * from tenants where owner_email = ? order by id desc limit 1', String(b.email).toLowerCase())
+      : null;
+  if (!t) throw notFound('租户不存在');
+
+  const target = SUB_STATUS_MAP[status];
+  const expiresAt = b.expiresAt ? String(b.expiresAt) : t.expires_at;
+  const unchanged = t.status === target && t.expires_at === expiresAt;
+  if (!unchanged) {
+    await run('update tenants set status=?, expires_at=?, updated_at=? where id=?',
+      target, expiresAt, nowIso(), t.id);
+  }
+
+  // grace 仍允许登录（只读在统一入口拦截）；冻结/终止同时停用登录态
+  if (t.user_id) {
+    if (['frozen', 'expired', 'cancelled'].includes(status)) {
+      await run("update users set status='frozen' where id=?", t.user_id);
+    } else if (target === 'active') {
+      await run("update users set status='active' where id=? and status='frozen'", t.user_id);
+    }
+  }
+
+  const fresh = await one('select * from tenants where id = ?', t.id);
+  return { ok: true, tenant: viewOf(fresh), unchanged, mappedStatus: target, fromStatus: t.status };
+}, { auth: false });
+
 /** 用量：给官网做计费与展示 */
 GET('/api/internal/tenant/usage', async (ctx) => {
   guard(ctx);

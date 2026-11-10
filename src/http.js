@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { getSession, loadUser, COOKIE, touchSession } from './auth.js';
 import { run as dbRun } from './db.js';
 import { authenticateApi, noteApiLog } from './api-auth.js';
+import { tenantBlockReason } from './tenant-guard.js';
 export class HttpError extends Error {
   constructor(status, message, detail) {
     super(message);
@@ -149,6 +150,11 @@ export async function dispatch(req, res, ctxBase) {
       const exp = await touchSession(token);
       res.setHeader('Set-Cookie', `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Expires=${new Date(exp).toUTCString()}`);
     }
+  }
+  // 订阅状态闸门：宽限期只读 / 冻结态拒绝写入（内部接口与登录链路豁免）
+  if (ctx.user) {
+    const block = await tenantBlockReason(ctx.user, url.pathname, req.method);
+    if (block) throw new HttpError(403, block.message, { code: block.code });
   }
   if (req.method !== 'GET' && req.method !== 'DELETE') {
     const len = Number(req.headers['content-length'] || 0);
