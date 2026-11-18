@@ -15,6 +15,14 @@ export const ROLES = {
     scope: 'all',
     modules: ['*']
   },
+  // 付费开通的租户主：功能上等同管理员（全模块可见、能建人分角色），
+  // 但数据范围锁在 org —— 否则一个客户能越权看到别的客户数据。
+  // 与 admin 的唯一差别就是 scope，千万别图省事直接用 admin 顶替。
+  owner: {
+    label: '租户管理员',
+    scope: 'org',
+    modules: ['*']
+  },
   gm: {
     label: '总经理',
     scope: 'all',
@@ -57,7 +65,7 @@ export const ROLES = {
     modules: ['dashboard', 'contract', 'approval']
   }
 };
-export const ROLE_ORDER = ['admin', 'gm', 'director', 'manager', 'ae', 'trial', 'sdr', 'finance', 'legal'];
+export const ROLE_ORDER = ['admin', 'owner', 'gm', 'director', 'manager', 'ae', 'trial', 'sdr', 'finance', 'legal'];
 
 /**
  * 分级管理：谁能管理哪些人
@@ -70,6 +78,12 @@ export const MANAGE_RULES = {
   admin: {
     scope: 'all',
     roles: null
+  },
+  // 租户管理员：只能管本公司这棵树（scope=org），可分配的角色刻意不含
+  // admin / gm / owner —— 前两个是全局角色会打破隔离，owner 保证租户主唯一。
+  owner: {
+    scope: 'org',
+    roles: ['director', 'manager', 'ae', 'trial', 'sdr', 'finance', 'legal']
   },
   gm: {
     scope: 'all',

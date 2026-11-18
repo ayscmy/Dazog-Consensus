@@ -3,7 +3,7 @@ import { GET, POST, HttpError, bad, notFound } from '../http.js';
 import { one, run, nowIso, idOf } from '../db.js';
 import {
   createTrialAccount, freezeTrialAccount, purgeTrialAccount, findTrial,
-  sweepExpired, TRIAL_DAYS, TRIAL_RETAIN_DAYS
+  sweepExpired, promotePaidAccounts, TRIAL_DAYS, TRIAL_RETAIN_DAYS
 } from '../trial.js';
 
 /**
@@ -73,6 +73,13 @@ POST('/api/internal/trial/:id/freeze', async (ctx) => {
   if (!acc) throw notFound('试用记录不存在');
   const out = await freezeTrialAccount(id, String((ctx.body && ctx.body.reason) || '试用到期'));
   return { ok: true, ...out, status: 'frozen', retainDays: TRIAL_RETAIN_DAYS };
+}, { auth: false });
+
+/** 存量付费账号提权为租户管理员（官网查到付费账号时主动踢一脚，幂等） */
+POST('/api/internal/trial/promote-paid', async (ctx) => {
+  guard(ctx);
+  const done = await promotePaidAccounts(Number((ctx.body && ctx.body.limit) || 200));
+  return { ok: true, count: done.length, items: done };
 }, { auth: false });
 
 /** 回收（幂等：已回收的再调一次也返回 200） */

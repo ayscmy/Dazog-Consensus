@@ -194,8 +194,14 @@ function normalize(input) {
   const email = String(input.email || '').trim().toLowerCase();
   const name = String(input.name || '试用用户').trim().slice(0, 20) || '试用用户';
   const company = String(input.company || '试用企业').trim().slice(0, 40) || '试用企业';
-  const days = Math.min(90, Math.max(1, Number(input.days || TRIAL_DAYS)));
   const source = String(input.source || 'website').slice(0, 40);
+  // 免费试用最多 90 天兜底；付费开通（source 以 paid 开头）按购买时长放长到 10 年。
+  // 两者共用同一套账号/组织创建逻辑，只有时长上限不同，避免为付费单独维护一套租户系统。
+  const isPaid = /^paid/i.test(source);
+  const rawDays = Number(input.days || TRIAL_DAYS);
+  const days = isPaid
+    ? Math.min(3650, Math.max(1, Math.trunc(rawDays) || TRIAL_DAYS))
+    : Math.min(90, Math.max(1, rawDays));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new Error('邮箱格式不正确');
   return { email, name, company, days, source };
 }
@@ -239,7 +245,10 @@ export async function createTrialAccount(input) {
     }
     if (!userId) throw new Error('账号生成失败，请重试');
 
-    await run('insert into user_roles(user_id,role) values(?,?)', userId, 'trial');
+    // 付费账号给「租户管理员」：能建子账号、分配角色；试用账号保持 trial 受限。
+    // 两者都锁在自己的组织里（scope=org），看不到其他客户的数据。
+    const role = /^paid/i.test(v.source) ? 'owner' : 'trial';
+    await run('insert into user_roles(user_id,role) values(?,?)', userId, role);
 
     // 3. 预置产品（code 全局唯一，加组织后缀）
     for (const p of TRIAL_PRODUCTS) {
@@ -272,7 +281,7 @@ export async function createTrialAccount(input) {
       `insert into audit_logs(user_id,user_name,action,target_type,target_id,detail,ip,created_at)
        values(?,?,?,?,?,?,?,?)`,
       userId, v.name, 'trial.create', 'user', userId,
-      `开通试用账号 ${username}（${v.company}，${v.days} 天）`, '', nowStr
+      `开通${role === 'owner' ? '付费正式版' : '试用'}账号 ${username}（${v.company}，${v.days} 天，角色 ${role}）`, '', nowStr
     );
 
     return {
@@ -281,6 +290,7 @@ export async function createTrialAccount(input) {
       orgId,
       username,
       password,
+      role,
       expiresAt,
       days: v.days,
       sample: seeded,
@@ -530,6 +540,40 @@ export async function sweepExpired(limit = 50) {
   return done;
 }
 
+/**
+ * 存量付费账号提权：早期付费号复用试用通道创建，角色写死成 trial，
+ * 导致付费客户进不了「用户与组织」。这里按 source 前缀把它们升级为 owner。
+ *
+ * 幂等且克制：只动「source=paid:* 且当前恰好是 trial」的账号；
+ * 已被手工改成其他角色的跳过，避免覆盖管理员的调整。
+ */
+export async function promotePaidAccounts(limit = 200) {
+  const rows = await all(
+    "select id, user_id, username from trial_accounts where source like 'paid:%' and status='active' order by id limit " + Number(limit)
+  );
+  const done = [];
+  for (const r of rows) {
+    const uid = Number(r.user_id || 0);
+    if (!uid) continue;
+    const roles = (await all('select role from user_roles where user_id=?', uid)).map((x) => x.role);
+    if (roles.includes('owner')) continue;                 // 已是 owner，幂等
+    if (!roles.includes('trial') || roles.length !== 1) continue; // 只有单独 trial 才动，不碰手工调整
+    await run("delete from user_roles where user_id=? and role='trial'", uid);
+    await run('insert into user_roles(user_id,role) values(?,?)', uid, 'owner');
+    // 角色变了要强制重登，否则旧会话里缓存的 modules 不含 admin 菜单
+    await run('delete from sessions where user_id=?', uid);
+    try {
+      await run(
+        `insert into audit_logs(user_id,user_name,action,target_type,target_id,detail,ip,created_at)
+         values(?,?,?,?,?,?,?,?)`,
+        uid, '系统', 'trial.promote', 'user', uid, `存量付费账号 ${r.username || uid} 升级为租户管理员`, '', nowIso()
+      );
+    } catch { /* 审计失败不影响提权 */ }
+    done.push({ accountId: r.id, userId: uid, username: r.username });
+  }
+  return done;
+}
+
 /** 每小时扫一次；启动 20 秒后先跑一遍 */
 export function startTrialJanitor(intervalMs = 3600_000) {
   const tick = async () => {
@@ -542,6 +586,13 @@ export function startTrialJanitor(intervalMs = 3600_000) {
       }
     } catch (e) {
       console.error('[trial] 清理失败：', e.message);
+    }
+    // 老付费账号提权：与回收同一节奏，失败单独兜底
+    try {
+      const promoted = await promotePaidAccounts();
+      if (promoted.length) console.log(`[trial] 已将 ${promoted.length} 个存量付费账号升级为租户管理员`);
+    } catch (e) {
+      console.error('[trial] 付费账号提权失败：', e.message);
     }
   };
   const timer = setInterval(tick, intervalMs);
