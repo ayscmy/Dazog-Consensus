@@ -102,7 +102,7 @@ const server = createServer(async (req, res) => {
     // 客户免登录查看报价单：/q/<token>
     if (url.pathname.startsWith('/q/')) {
       const token = url.pathname.slice(3).replace(/\/+$/, '');
-      const data = /^[a-f0-9]{16,64}$/.test(token) ? findQuoteByToken(token) : null;
+      const data = /^[a-f0-9]{16,64}$/.test(token) ? await findQuoteByToken(token) : null;
       if (!data || !['approved', 'converted'].includes(data.q.status)) {
         res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(`<!doctype html><meta charset="utf-8"><title>报价单不存在</title>
@@ -112,7 +112,7 @@ const server = createServer(async (req, res) => {
         return;
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(renderSheetHtml(data, { autoPrint: url.searchParams.get('print') === '1' }));
+      res.end(await renderSheetHtml(data, { autoPrint: url.searchParams.get('print') === '1' }));
       return;
     }
 
