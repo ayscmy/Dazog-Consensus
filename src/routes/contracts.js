@@ -3,6 +3,8 @@ import { all, one, run, nowIso, idOf, today } from '../db.js';
 import { scopeFilter, canEditRecord, canModule } from '../auth.js';
 import { chainForContract, createApproval, approvalDetail, createPaymentPlans, resolveChain, applyAssignees } from '../approval.js';
 import { loadContractDoc, renderContractHtml } from '../doc/contract-doc.js';
+import { loadQuoteSheet } from '../doc/quote-sheet.js';
+import { quoteSheetPayload } from './quotations.js';
 import { createContractRecord } from '../contracts-service.js';
 const parseJson = (text, fallback) => {
   if (!text) return fallback;
@@ -130,6 +132,16 @@ GET('/api/contracts/:id', async ctx => {
   c.template = c.template_id ? await one('select id, code, name from contract_templates where id=?', c.template_id) : null;
   c.sends = [];
   return c;
+});
+/** 从合同附件查看关联报价单：只校验合同权限，不重复校验商机权限 */
+GET('/api/contracts/:id/quote-sheet', async ctx => {
+  const c = await loadContract(ctx.params.id);
+  if (!c) throw notFound('合同不存在');
+  if (!(await canEditRecord(ctx.user, c))) throw denied('无权查看该合同');
+  if (!c.quotation_id) throw notFound('该合同未关联报价单');
+  const data = await loadQuoteSheet(c.quotation_id);
+  if (!data) throw notFound('报价单不存在');
+  return quoteSheetPayload(ctx, data);
 });
 
 /** 合同单据（订单合约为发票式，条款合约为条款版），打印/另存 PDF */

@@ -332,8 +332,8 @@ async function sheetContext(ctx) {
   if (!(await canEditRecord(ctx.user, op))) throw denied('无权查看该报价');
   return data;
 }
-GET('/api/quotations/:id/sheet', async ctx => {
-  const data = await sheetContext(ctx);
+/** 报价单查看响应：报价单页与合同附件共用，避免两处重复组装 */
+export async function quoteSheetPayload(ctx, data) {
   const token = await ensureToken(data.q);
   const url = `${await publicBase(ctx.req)}/q/${token}`;
   return {
@@ -352,6 +352,10 @@ GET('/api/quotations/:id/sheet', async ctx => {
     },
     sends: await all('select * from quote_sends where quotation_id=? order by id desc limit 20', data.q.id)
   };
+}
+GET('/api/quotations/:id/sheet', async ctx => {
+  const data = await sheetContext(ctx);
+  return quoteSheetPayload(ctx, data);
 });
 GET('/api/quotations/:id/sends', async ctx => {
   const data = await sheetContext(ctx);

@@ -305,7 +305,7 @@ export async function openContract(id, ctx) {
       const qd = root.querySelector('[data-quote-doc]');
       if (qd) qd.onclick = async () => {
         try {
-          const s = await api.get(`/api/quotations/${c.quotation_id}/sheet`);
+          const s = await api.get(`/api/contracts/${c.id}/quote-sheet`);
           window.open(s.url, '_blank');
         } catch (e) { toast(e.message, 'err'); }
       };
