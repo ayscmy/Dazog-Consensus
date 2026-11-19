@@ -28,7 +28,7 @@ const NAV = [
   {
     group: '系统',
     items: [
-      { key: 'settings', label: '系统设置', icon: 'gear', role: ['admin', 'gm'] },
+      { key: 'settings', label: '系统设置', icon: 'gear' },
       { key: 'admin', label: '用户与组织', icon: 'admin', module: 'admin' },
     ],
   },

@@ -365,7 +365,7 @@ POST('/api/admin/targets', async ctx => {
 /* ---------------- 系统设置 ---------------- */
 
 GET('/api/settings', async ctx => {
-  if (ctx.user.role !== 'admin' && ctx.user.role !== 'gm') throw denied('只有管理员或总经理可以查看系统设置');
+  // 系统设置对所有登录角色可见（只读）；修改权限仍由 PATCH 单独限制为系统管理员
   return {
     values: await getSettings(),
     schema: SETTING_LABELS,
